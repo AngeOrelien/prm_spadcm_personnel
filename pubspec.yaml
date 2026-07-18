@@ -55,6 +55,11 @@ flutter_launcher_icons:
 
   android: true
 
+  windows:
+    generate: true
+    image_path: "assets/icons/prmspad_personnel.png"
+    icon_size: 48
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

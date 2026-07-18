@@ -9,11 +9,13 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource(this._apiClient);
 
-  Future<void> demanderOtp(String email) async {
+  /// Étape 1 du login : le backend vérifie d'abord l'email + mot de passe,
+  /// et n'envoie le code OTP par email que si la paire est correcte.
+  Future<void> demanderOtp({required String email, required String motDePasse}) async {
     try {
       await _apiClient.dio.post(
         ApiConstants.requestOtp,
-        data: {'email': email},
+        data: {'email': email, 'motDePasse': motDePasse},
       );
     } on DioException catch (e) {
       throw ApiClient.toAppException(e);

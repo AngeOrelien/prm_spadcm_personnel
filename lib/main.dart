@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
 void main() {
@@ -17,10 +18,7 @@ class PrmPersonnelApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'PRM — Personnel',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF2E7D6B), // vert médical sobre
-      ),
+      theme: AppTheme.light,
       routerConfig: router,
     );
   }

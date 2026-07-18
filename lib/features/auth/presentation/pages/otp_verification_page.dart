@@ -44,7 +44,7 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
   Future<void> _renvoyerCode() async {
     final email = ref.read(otpLoginControllerProvider).email;
     final controller = ref.read(otpLoginControllerProvider.notifier);
-    final succes = await controller.demanderCode(email);
+    final succes = await controller.renvoyerCode();
     if (!mounted) return;
     if (succes) {
       context.showInfo('Un nouveau code a été envoyé à $email');

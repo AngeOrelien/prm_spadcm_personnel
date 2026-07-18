@@ -68,7 +68,7 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#FFFFFF"               # Couleur de fond générale (Android 11 et moins, iOS)
-  image: "assets/icons/prmspad_personnel.png" # Image centrale
+  image: "assets/icons/prmspad_personnel_splash.png" # Image centrale
   android: true
   ios: true
   fullscreen: true               # Recommandé pour éviter les sauts de barres système au démarrage
@@ -76,7 +76,7 @@ flutter_native_splash:
   # AJOUT : Configuration impérative pour Android 12 jusqu'à Android 16+
   android_12:
     color: "#FFFFFF"               # Couleur de fond générale (Android 11 et moins, iOS)
-    image: "assets/icons/prmspad_personnel.png" # Image centrale
+    image: "assets/icons/prmspad_personnel_splash.png" # Image centrale
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -11,8 +11,14 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._remoteDataSource, this._storage);
 
   @override
-  Future<void> demanderCodeConnexion(String email) {
-    return _remoteDataSource.demanderOtp(email.trim().toLowerCase());
+  Future<void> demanderCodeConnexion({
+    required String email,
+    required String motDePasse,
+  }) {
+    return _remoteDataSource.demanderOtp(
+      email: email.trim().toLowerCase(),
+      motDePasse: motDePasse,
+    );
   }
 
   @override

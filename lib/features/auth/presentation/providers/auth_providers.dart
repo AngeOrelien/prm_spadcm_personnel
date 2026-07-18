@@ -65,12 +65,14 @@ enum OtpLoginStep { saisieEmail, saisieCode }
 class OtpLoginState {
   final OtpLoginStep step;
   final String email;
+  final String motDePasse;
   final bool isLoading;
   final String? errorMessage;
 
   const OtpLoginState({
     this.step = OtpLoginStep.saisieEmail,
     this.email = '',
+    this.motDePasse = '',
     this.isLoading = false,
     this.errorMessage,
   });
@@ -78,6 +80,7 @@ class OtpLoginState {
   OtpLoginState copyWith({
     OtpLoginStep? step,
     String? email,
+    String? motDePasse,
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
@@ -85,6 +88,7 @@ class OtpLoginState {
     return OtpLoginState(
       step: step ?? this.step,
       email: email ?? this.email,
+      motDePasse: motDePasse ?? this.motDePasse,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -98,13 +102,22 @@ class OtpLoginController extends StateNotifier<OtpLoginState> {
   OtpLoginController(this._authRepository, this._authController)
       : super(const OtpLoginState());
 
-  Future<bool> demanderCode(String email) async {
+  /// Étape 1 : vérifie email + mot de passe côté serveur, puis déclenche
+  /// l'envoi du code OTP par email si les identifiants sont valides.
+  Future<bool> demanderCode({
+    required String email,
+    required String motDePasse,
+  }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _authRepository.demanderCodeConnexion(email);
+      await _authRepository.demanderCodeConnexion(
+        email: email,
+        motDePasse: motDePasse,
+      );
       state = state.copyWith(
         isLoading: false,
         email: email,
+        motDePasse: motDePasse,
         step: OtpLoginStep.saisieCode,
       );
       return true;
@@ -112,6 +125,13 @@ class OtpLoginController extends StateNotifier<OtpLoginState> {
       state = state.copyWith(isLoading: false, errorMessage: e.message);
       return false;
     }
+  }
+
+  /// Renvoie un nouveau code OTP en réutilisant l'email + mot de passe déjà
+  /// validés à l'étape 1 (évite de redemander le mot de passe uniquement
+  /// pour un renvoi de code).
+  Future<bool> renvoyerCode() {
+    return demanderCode(email: state.email, motDePasse: state.motDePasse);
   }
 
   Future<bool> verifierCode(String code) async {

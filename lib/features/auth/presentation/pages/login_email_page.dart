@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/buttons/app_primary_button.dart';
 import '../../../../shared/widgets/buttons/app_social_button.dart';
 import '../../../../shared/widgets/inputs/app_checkbox_tile.dart';
@@ -13,7 +15,6 @@ import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
 import '../../../../shared/widgets/misc/app_or_divider.dart';
 import '../providers/auth_providers.dart';
-import 'otp_verification_page.dart';
 
 /// Écran de connexion de l'app Personnel (AVS / Médecin / Coordonnateur /
 /// Administrateur). Flux en 2 étapes :
@@ -54,9 +55,7 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
     if (!mounted) return;
 
     if (succes) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const OtpVerificationPage()),
-      );
+      context.push(AppRoutes.otp);
     } else {
       final erreur = ref.read(otpLoginControllerProvider).errorMessage;
       context.showError(erreur ?? 'Email ou mot de passe incorrect');
@@ -106,7 +105,7 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    height: 100,
+                    height: 72,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.medical_services_outlined,
                       size: 64,
@@ -114,7 +113,7 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.xl),
 
                 Text('Content de te revoir', style: textTheme.headlineMedium, textAlign: TextAlign.center),
                 const SizedBox(height: AppSpacing.sm),

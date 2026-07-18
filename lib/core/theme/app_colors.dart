@@ -11,10 +11,10 @@ class AppColors {
   AppColors._();
 
   // --- Marque ---
-  static const Color primary = Color(0xFF00A7BB);
-  static const Color primaryDark = Color(0xFF007583);
-  static const Color primaryLight = Color(0xFF40C0CD);
-  static const Color primarySurface = Color(0xFFE5F6F7);
+  static const Color primary = Color(0xFF068574);
+  static const Color primaryDark = Color(0xFF04564A);
+  static const Color primaryLight = Color(0xFF4FA79A);
+  static const Color primarySurface = Color(0xFFE6F3F1);
 
   static const Color secondary = Color(0xFFFF6F61); // corail
   static const Color secondaryDark = Color(0xFFE0503F);

@@ -3,34 +3,72 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 
-/// En-tête commun à tous les dashboards (quel que soit le rôle) :
-///   - à gauche : avatar (initiales) + nom + rôle -> tape pour aller au profil
-///   - à droite : 2 options -> Notifications et Paramètres (ce dernier ouvre
-///     aussi la déconnexion, voir [RoleDashboardShell])
-///
-/// Volontairement "bête" (StatelessWidget, pas de logique métier) pour rester
-/// réutilisable : toute la logique (aller au profil, ouvrir un menu...) est
-/// injectée via les callbacks par l'écran parent.
-class AppDashboardHeader extends StatelessWidget {
-  final String nomComplet;
-  final String libelleRole;
-  final bool notificationsNonLues;
-  final VoidCallback? onTapProfil;
-  final VoidCallback? onTapNotifications;
-  final VoidCallback? onTapParametres;
+/// Une icône d'action à droite du header (notifications, paramètres,
+/// recherche, filtre, ajout...). Chaque page choisit ses propres actions :
+/// c'est ce qui rend le header "personnel" d'une page à l'autre plutôt que
+/// strictement identique partout.
+class HeaderAction {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final bool badge;
 
-  const AppDashboardHeader({
+  const HeaderAction({
+    required this.icon,
+    required this.tooltip,
+    this.onTap,
+    this.badge = false,
+  });
+}
+
+/// En-tête réutilisable, mais personnalisable page par page.
+///
+/// Deux modes :
+///  - [showGreeting] = true  -> mode "accueil" : avatar (initiales) + "Bonjour,
+///    Nom" + rôle, comme avant. Tape sur l'avatar -> profil.
+///  - [showGreeting] = false -> mode "page" : simple titre (+ sous-titre
+///    optionnel), ex. "Patients" / "24 patients suivis".
+///
+/// Dans les deux cas, la liste [actions] à droite est libre : une page de
+/// liste peut afficher une loupe + un "+", une page de rapports un filtre,
+/// une page de profil une icône d'édition, etc.
+class AppDashboardHeader extends StatelessWidget {
+  final bool showGreeting;
+  final String? nomComplet;
+  final String? libelleRole;
+  final VoidCallback? onTapProfil;
+
+  final String? title;
+  final String? subtitle;
+  final IconData? leadingIcon;
+
+  final List<HeaderAction> actions;
+
+  const AppDashboardHeader.greeting({
     super.key,
     required this.nomComplet,
     required this.libelleRole,
-    this.notificationsNonLues = false,
     this.onTapProfil,
-    this.onTapNotifications,
-    this.onTapParametres,
-  });
+    this.actions = const [],
+  })  : showGreeting = true,
+        title = null,
+        subtitle = null,
+        leadingIcon = null;
+
+  const AppDashboardHeader.page({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.leadingIcon,
+    this.actions = const [],
+  })  : showGreeting = false,
+        nomComplet = null,
+        libelleRole = null,
+        onTapProfil = null;
 
   String get _initiales {
-    final mots = nomComplet.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty);
+    final nom = nomComplet ?? '';
+    final mots = nom.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty);
     if (mots.isEmpty) return '?';
     if (mots.length == 1) return mots.first.substring(0, 1).toUpperCase();
     return (mots.first.substring(0, 1) + mots.last.substring(0, 1)).toUpperCase();
@@ -45,52 +83,86 @@ class AppDashboardHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: InkWell(
-              onTap: onTapProfil,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: AppColors.primarySurface,
-                    child: Text(
-                      _initiales,
-                      style: textTheme.titleLarge?.copyWith(color: AppColors.primary, fontSize: 16),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Bonjour, $nomComplet',
-                          style: textTheme.titleLarge?.copyWith(fontSize: 16),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(libelleRole, style: textTheme.bodySmall),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            child: showGreeting ? _buildGreeting(textTheme) : _buildTitle(textTheme),
+          ),
+          for (final action in actions) ...[
+            const SizedBox(width: AppSpacing.xs),
+            _HeaderIconButton(
+              icon: action.icon,
+              tooltip: action.tooltip,
+              avecPastille: action.badge,
+              onTap: action.onTap,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGreeting(TextTheme textTheme) {
+    return InkWell(
+      onTap: onTapProfil,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.primarySurface,
+            child: Text(
+              _initiales,
+              style: textTheme.titleLarge?.copyWith(color: AppColors.primary, fontSize: 16),
             ),
           ),
-          _HeaderIconButton(
-            icon: Icons.notifications_outlined,
-            avecPastille: notificationsNonLues,
-            tooltip: 'Notifications',
-            onTap: onTapNotifications,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          _HeaderIconButton(
-            icon: Icons.settings_outlined,
-            tooltip: 'Paramètres',
-            onTap: onTapParametres,
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Bonjour, ${nomComplet ?? ''}',
+                  style: textTheme.titleLarge?.copyWith(fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(libelleRole ?? '', style: textTheme.bodySmall),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTitle(TextTheme textTheme) {
+    return Row(
+      children: [
+        if (leadingIcon != null) ...[
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: AppColors.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(leadingIcon, size: 20, color: AppColors.primary),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title ?? '',
+                style: textTheme.titleLarge?.copyWith(fontSize: 20),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (subtitle != null)
+                Text(subtitle!, style: textTheme.bodySmall, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

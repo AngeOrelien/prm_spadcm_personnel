@@ -30,9 +30,15 @@ abstract class AppRoutes {
   // --- Coordonnateur ---
   static const coordonnateurDashboard = '/coordonnateur';
   static const coordonnateurAccueil = '/coordonnateur/accueil';
+  static const coordonnateurPatients = '/coordonnateur/patients';
   static const coordonnateurEquipe = '/coordonnateur/equipe';
-  static const coordonnateurInterventions = '/coordonnateur/interventions';
+  static const coordonnateurRapports = '/coordonnateur/rapports';
   static const coordonnateurProfil = '/coordonnateur/profil';
+  // Pages ouvertes en plein écran depuis le menu d'actions rapides ou depuis
+  // un onglet (pas des onglets en soi, donc pas dans la bottom navigation).
+  static const coordonnateurAffectations = '/coordonnateur/affectations';
+  static const coordonnateurNouveauPatient = '/coordonnateur/patients/nouveau';
+  static const coordonnateurNouvelAvs = '/coordonnateur/equipe/nouveau';
 
   // --- Administrateur ---
   static const administrateurDashboard = '/administrateur';

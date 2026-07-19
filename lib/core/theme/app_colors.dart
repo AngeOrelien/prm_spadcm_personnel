@@ -11,10 +11,10 @@ class AppColors {
   AppColors._();
 
   // --- Marque ---
-  static const Color primary = Color(0xFF068574);
-  static const Color primaryDark = Color(0xFF04564A);
-  static const Color primaryLight = Color(0xFF4FA79A);
-  static const Color primarySurface = Color(0xFFE6F3F1);
+  static const Color primary = Color(0xFF00A7BB);
+  static const Color primaryDark = Color(0xFF007583);
+  static const Color primaryLight = Color(0xFF40C0CD);
+  static const Color primarySurface = Color(0xFFE5F6F7);
 
   static const Color secondary = Color(0xFFFF6F61); // corail
   static const Color secondaryDark = Color(0xFFE0503F);
@@ -43,4 +43,11 @@ class AppColors {
   static const Color roleMedecin = Color(0xFF1976D2);
   static const Color roleCoordonnateur = Color(0xFFF9A825);
   static const Color roleAdministrateur = Color(0xFF6B4EFF);
+
+  // --- Bottom navigation (thème sombre, volontairement indépendant du
+  // thème clair du reste de l'app : voir RoleDashboardShell) ---
+  static const Color navBackground = Color(0xFF0F1A1B);
+  static const Color navIndicator = Color(0xFF00383F);
+  static const Color navSelected = Color(0xFF40C0CD);
+  static const Color navUnselected = Color(0xFF7A8D8B);
 }

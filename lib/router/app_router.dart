@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/pages/login_email_page.dart';
 import '../features/auth/presentation/pages/otp_verification_page.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_affectations_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_avs_form_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_patient_form_page.dart';
 import '../features/dashboard/presentation/pages/dashboard_tab_placeholder.dart';
 import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
 import '../screens/splash_screen.dart';
@@ -38,7 +41,8 @@ StatefulShellRoute _buildDashboardRoute(RoleDashboardConfig config) {
           routes: [
             GoRoute(
               path: tab.path,
-              builder: (context, state) => DashboardTabPlaceholder(label: tab.label),
+              builder: (context, state) =>
+                  tab.pageBuilder?.call(context) ?? DashboardTabPlaceholder(label: tab.label),
             ),
           ],
         ),
@@ -82,6 +86,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.login, builder: (context, state) => const LoginEmailPage()),
       GoRoute(path: AppRoutes.otp, builder: (context, state) => const OtpVerificationPage()),
       for (final config in roleDashboards.values) _buildDashboardRoute(config),
+
+      // --- Coordonnateur : pages plein écran (ouvertes via context.push,
+      // donc sans bottom navigation), atteintes depuis le menu d'actions
+      // rapides ou depuis un bouton "+" au sein d'un onglet. ---
+      GoRoute(
+        path: AppRoutes.coordonnateurAffectations,
+        builder: (context, state) => const CoordonnateurAffectationsPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.coordonnateurNouveauPatient,
+        builder: (context, state) => const CoordonnateurPatientFormPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.coordonnateurNouvelAvs,
+        builder: (context, state) => const CoordonnateurAvsFormPage(),
+      ),
     ],
   );
 });

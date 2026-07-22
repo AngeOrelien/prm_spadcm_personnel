@@ -30,21 +30,27 @@ class StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: AppColors.border),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(color: couleur.withOpacity(0.12), shape: BoxShape.circle),
-                child: Icon(icon, color: couleur, size: 20),
+                child: Icon(icon, color: couleur, size: 18),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(valeur, style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 6),
+              Text(
+                valeur,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 2),
               Text(
                 libelle,
@@ -103,30 +109,30 @@ class StatusChip extends StatelessWidget {
 
 extension StatutAvsX on StatutAvs {
   String get libelle => switch (this) {
-        StatutAvs.disponible => 'Disponible',
-        StatutAvs.enIntervention => 'En intervention',
-        StatutAvs.absent => 'Absent',
-      };
+    StatutAvs.disponible => 'Disponible',
+    StatutAvs.enIntervention => 'En intervention',
+    StatutAvs.absent => 'Absent',
+  };
 
   Color get couleur => switch (this) {
-        StatutAvs.disponible => AppColors.success,
-        StatutAvs.enIntervention => AppColors.info,
-        StatutAvs.absent => AppColors.textDisabled,
-      };
+    StatutAvs.disponible => AppColors.success,
+    StatutAvs.enIntervention => AppColors.info,
+    StatutAvs.absent => AppColors.textDisabled,
+  };
 }
 
 extension StatutRapportX on StatutRapport {
   String get libelle => switch (this) {
-        StatutRapport.enAttente => 'En attente',
-        StatutRapport.valide => 'Validé',
-        StatutRapport.rejete => 'Rejeté',
-      };
+    StatutRapport.enAttente => 'En attente',
+    StatutRapport.valide => 'Validé',
+    StatutRapport.rejete => 'Rejeté',
+  };
 
   Color get couleur => switch (this) {
-        StatutRapport.enAttente => AppColors.warning,
-        StatutRapport.valide => AppColors.success,
-        StatutRapport.rejete => AppColors.error,
-      };
+    StatutRapport.enAttente => AppColors.warning,
+    StatutRapport.valide => AppColors.success,
+    StatutRapport.rejete => AppColors.error,
+  };
 }
 
 /// Petit avatar rond avec initiales, pour lignes de listes (patient/AVS).

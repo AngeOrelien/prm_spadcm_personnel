@@ -1,114 +1,163 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
+import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../data/datasources/coordonnateur_remote_datasource.dart';
+import '../../data/models/coordonnateur_models.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
 
 // ---------------------------------------------------------------------------
-// TODO(backend): ces providers exposent pour l'instant des données factices
-// en mémoire, le temps que les endpoints "patients / avs / affectations /
-// rapports" existent côté API. Le jour venu, remplacer le contenu des
-// StateNotifier ci-dessous par de vrais appels repository (même pattern que
-// `auth_providers.dart`) — les pages n'ont pas à changer.
+// Providers branchés sur le vrai backend `prm-spad-backend` (voir
+// `data/datasources/coordonnateur_remote_datasource.dart`). Chaque liste est
+// un [FutureProvider] : les pages consomment un `AsyncValue<List<...>>` et
+// gèrent elles-mêmes chargement/erreur (voir `.when(...)` dans les pages).
+// Les mutations (créer/valider/rejeter...) passent par [CoordonnateurActions]
+// puis invalident les providers de liste concernés pour rafraîchir l'UI.
 // ---------------------------------------------------------------------------
 
-final _avsInitiaux = <Avs>[
-  const Avs(id: 'avs1', nom: 'Kamga', prenom: 'Solange', telephone: '+237 690 11 22 33', statut: StatutAvs.disponible, patientsAssignes: 2),
-  const Avs(id: 'avs2', nom: 'Mballa', prenom: 'Eric', telephone: '+237 677 22 33 44', statut: StatutAvs.enIntervention, patientsAssignes: 3),
-  const Avs(id: 'avs3', nom: 'Ngo Bell', prenom: 'Chantal', telephone: '+237 655 33 44 55', statut: StatutAvs.disponible, patientsAssignes: 1),
-  const Avs(id: 'avs4', nom: 'Fotso', prenom: 'Paul', telephone: '+237 699 44 55 66', statut: StatutAvs.absent, patientsAssignes: 0),
-];
-
-final _patientsInitiaux = <Patient>[
-  const Patient(id: 'pat1', nom: 'Etoundi', prenom: 'Marie', age: 78, adresse: 'Bastos, Yaoundé', pathologie: 'Diabète type 2', avsAssigneId: 'avs1'),
-  const Patient(id: 'pat2', nom: 'Owona', prenom: 'Jean', age: 84, adresse: 'Mvan, Yaoundé', pathologie: 'Alzheimer débutant', avsAssigneId: 'avs2'),
-  const Patient(id: 'pat3', nom: 'Biya', prenom: 'Angèle', age: 69, adresse: 'Nlongkak, Yaoundé', pathologie: 'Hypertension', avsAssigneId: 'avs1'),
-  const Patient(id: 'pat4', nom: 'Talla', prenom: 'Bernard', age: 91, adresse: 'Essos, Yaoundé', pathologie: 'Mobilité réduite', avsAssigneId: null),
-  const Patient(id: 'pat5', nom: 'Ndzana', prenom: 'Sylvie', age: 73, adresse: 'Emombo, Yaoundé', pathologie: 'Post-AVC', avsAssigneId: 'avs2'),
-];
-
-final _affectationsInitiales = <Affectation>[
-  Affectation(id: 'aff1', patientId: 'pat1', avsId: 'avs1', frequence: '3x / semaine', depuisLe: DateTime(2026, 3, 2)),
-  Affectation(id: 'aff2', patientId: 'pat2', avsId: 'avs2', frequence: 'Quotidien', depuisLe: DateTime(2026, 1, 15)),
-  Affectation(id: 'aff3', patientId: 'pat3', avsId: 'avs1', frequence: '2x / semaine', depuisLe: DateTime(2026, 5, 20)),
-  Affectation(id: 'aff4', patientId: 'pat5', avsId: 'avs2', frequence: 'Quotidien', depuisLe: DateTime(2026, 4, 8)),
-];
-
-final _rapportsInitiaux = <RapportAvs>[
-  RapportAvs(id: 'rap1', avsId: 'avs1', patientId: 'pat1', date: DateTime(2026, 7, 18), resume: 'Prise des constantes normale, glycémie stable, patient de bonne humeur.'),
-  RapportAvs(id: 'rap2', avsId: 'avs2', patientId: 'pat2', date: DateTime(2026, 7, 18), resume: 'Légère confusion en soirée, aide au repas nécessaire, à surveiller.'),
-  RapportAvs(id: 'rap3', avsId: 'avs1', patientId: 'pat3', date: DateTime(2026, 7, 17), resume: 'Tension artérielle un peu élevée (15/9), reste du suivi RAS.'),
-  RapportAvs(id: 'rap4', avsId: 'avs2', patientId: 'pat5', date: DateTime(2026, 7, 17), resume: 'Séance de rééducation bien suivie, progrès sur la mobilité du bras droit.', statut: StatutRapport.valide),
-  RapportAvs(id: 'rap5', avsId: 'avs1', patientId: 'pat1', date: DateTime(2026, 7, 16), resume: 'Refus de prise de traitement le matin, accepté après discussion.', statut: StatutRapport.rejete),
-];
-
-class AvsListNotifier extends StateNotifier<List<Avs>> {
-  AvsListNotifier() : super(_avsInitiaux);
-
-  void ajouter(Avs avs) => state = [...state, avs];
-}
-
-final avsListProvider = StateNotifierProvider<AvsListNotifier, List<Avs>>((ref) {
-  return AvsListNotifier();
+final coordonnateurRemoteDataSourceProvider = Provider<CoordonnateurRemoteDataSource>((ref) {
+  return CoordonnateurRemoteDataSource(ref.watch(apiClientProvider));
 });
 
-class PatientsListNotifier extends StateNotifier<List<Patient>> {
-  PatientsListNotifier() : super(_patientsInitiaux);
+/// Liste des patients suivis (recherche optionnelle côté serveur).
+final patientsListProvider = FutureProvider.autoDispose<List<Patient>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerPatients();
+});
 
-  void ajouter(Patient patient) => state = [...state, patient];
+/// Détail d'un patient précis (fiche complète + AVS assigné).
+final patientDetailProvider = FutureProvider.autoDispose.family<Patient, String>((ref, id) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).obtenirPatient(id);
+});
 
-  void assignerAvs(String patientId, String avsId) {
-    state = [
-      for (final p in state)
-        if (p.id == patientId)
-          Patient(
-            id: p.id,
-            nom: p.nom,
-            prenom: p.prenom,
-            age: p.age,
-            adresse: p.adresse,
-            pathologie: p.pathologie,
-            avsAssigneId: avsId,
-          )
-        else
-          p,
-    ];
+/// Équipe AVS avec charge de travail (`patientsAssignes`) déjà calculée côté API.
+final avsListProvider = FutureProvider.autoDispose<List<Avs>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerEquipeAvs();
+});
+
+/// Toutes les affectations (actives + terminées), utilisées par la vue
+/// calendrier et les fiches détail patient/AVS.
+final affectationsListProvider = FutureProvider.autoDispose<List<Affectation>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerAffectations();
+});
+
+/// Affectations d'un patient précis (fiche détail patient).
+final affectationsDuPatientProvider = FutureProvider.autoDispose.family<List<Affectation>, String>((ref, patientId) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerAffectations(patientId: patientId);
+});
+
+/// Affectations d'un AVS précis (fiche détail AVS).
+final affectationsDeLavsProvider = FutureProvider.autoDispose.family<List<Affectation>, String>((ref, avsId) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerAffectations(avsId: avsId);
+});
+
+/// Tous les rapports (page "Rapports", filtrable côté UI).
+final rapportsListProvider = FutureProvider.autoDispose<List<RapportAvs>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerRapports();
+});
+
+/// Rapports d'un patient précis (fiche détail patient : "Derniers rapports").
+final rapportsDuPatientProvider = FutureProvider.autoDispose.family<List<RapportAvs>, String>((ref, patientId) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerRapports(patientId: patientId);
+});
+
+/// Rapports d'un AVS précis (fiche détail AVS).
+final rapportsDeLavsProvider = FutureProvider.autoDispose.family<List<RapportAvs>, String>((ref, avsId) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerRapports(avsId: avsId);
+});
+
+/// File d'attente de validation médicale (compteur pour l'accueil + header).
+final rapportsEnAttenteListProvider = FutureProvider.autoDispose<List<RapportAvs>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerRapportsEnAttente();
+});
+
+final rapportsEnAttenteProvider = Provider.autoDispose<int>((ref) {
+  return ref.watch(rapportsEnAttenteListProvider).maybeWhen(
+        data: (liste) => liste.length,
+        orElse: () => 0,
+      );
+});
+
+final patientsNonAssignesProvider = Provider.autoDispose<int>((ref) {
+  return ref.watch(patientsListProvider).maybeWhen(
+        data: (liste) => liste.where((p) => p.avsAssigneId == null).length,
+        orElse: () => 0,
+      );
+});
+
+/// Actions qui modifient des données côté serveur, puis invalident les
+/// providers de liste concernés pour que l'UI se rafraîchisse automatiquement.
+class CoordonnateurActions {
+  final Ref _ref;
+
+  CoordonnateurActions(this._ref);
+
+  CoordonnateurRemoteDataSource get _ds => _ref.read(coordonnateurRemoteDataSourceProvider);
+
+  Future<void> ajouterPatient({
+    required String nom,
+    required String prenom,
+    DateTime? dateNaissance,
+    required String adresse,
+    required String pathologie,
+    List<String> antecedents = const [],
+    List<String> allergies = const [],
+    String? telephone,
+  }) async {
+    await _ds.creerPatient(
+      PatientModel.toCreateJson(
+        nom: nom,
+        prenom: prenom,
+        dateNaissance: dateNaissance,
+        adresse: adresse,
+        pathologie: pathologie,
+        antecedents: antecedents,
+        allergies: allergies,
+        telephone: telephone,
+      ),
+    );
+    _ref.invalidate(patientsListProvider);
+  }
+
+  Future<void> creerAffectation({
+    required String patientId,
+    required String avsId,
+    required String frequence,
+    required DateTime dateDebut,
+    String? notes,
+  }) async {
+    await _ds.creerAffectation(
+      patientId: patientId,
+      avsId: avsId,
+      frequence: frequence,
+      dateDebut: dateDebut,
+      notes: notes,
+    );
+    _ref.invalidate(affectationsListProvider);
+    _ref.invalidate(patientsListProvider);
+    _ref.invalidate(avsListProvider);
+    _ref.invalidate(patientDetailProvider(patientId));
+  }
+
+  Future<void> terminerAffectation(String id, {String? patientId}) async {
+    await _ds.terminerAffectation(id);
+    _ref.invalidate(affectationsListProvider);
+    _ref.invalidate(patientsListProvider);
+    _ref.invalidate(avsListProvider);
+    if (patientId != null) _ref.invalidate(patientDetailProvider(patientId));
+  }
+
+  Future<void> validerRapport(String id) async {
+    await _ds.validerRapport(id);
+    _ref.invalidate(rapportsListProvider);
+    _ref.invalidate(rapportsEnAttenteListProvider);
+  }
+
+  Future<void> rejeterRapport(String id, {String? motif}) async {
+    await _ds.rejeterRapport(id, motif: motif);
+    _ref.invalidate(rapportsListProvider);
+    _ref.invalidate(rapportsEnAttenteListProvider);
   }
 }
 
-final patientsListProvider = StateNotifierProvider<PatientsListNotifier, List<Patient>>((ref) {
-  return PatientsListNotifier();
-});
-
-class AffectationsListNotifier extends StateNotifier<List<Affectation>> {
-  AffectationsListNotifier() : super(_affectationsInitiales);
-
-  void ajouter(Affectation affectation) => state = [...state, affectation];
-}
-
-final affectationsListProvider = StateNotifierProvider<AffectationsListNotifier, List<Affectation>>((ref) {
-  return AffectationsListNotifier();
-});
-
-class RapportsListNotifier extends StateNotifier<List<RapportAvs>> {
-  RapportsListNotifier() : super(_rapportsInitiaux);
-
-  void mettreAJourStatut(String rapportId, StatutRapport statut) {
-    state = [
-      for (final r in state)
-        if (r.id == rapportId) r.copierAvec(statut: statut) else r,
-    ];
-  }
-}
-
-final rapportsListProvider = StateNotifierProvider<RapportsListNotifier, List<RapportAvs>>((ref) {
-  return RapportsListNotifier();
-});
-
-/// Quelques compteurs dérivés, pratiques pour l'accueil et les headers.
-final rapportsEnAttenteProvider = Provider<int>((ref) {
-  return ref.watch(rapportsListProvider).where((r) => r.statut == StatutRapport.enAttente).length;
-});
-
-final patientsNonAssignesProvider = Provider<int>((ref) {
-  return ref.watch(patientsListProvider).where((p) => p.avsAssigneId == null).length;
+final coordonnateurActionsProvider = Provider<CoordonnateurActions>((ref) {
+  return CoordonnateurActions(ref);
 });

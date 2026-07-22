@@ -1,56 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
-import '../../../../shared/widgets/buttons/app_primary_button.dart';
-import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
-import '../../domain/entities/coordonnateur_entities.dart';
-import '../providers/coordonnateur_providers.dart';
 
 /// Page plein écran (ouverte depuis le menu d'actions rapides ou depuis la
-/// page Équipe) : formulaire de création d'un agent AVS.
-class CoordonnateurAvsFormPage extends ConsumerStatefulWidget {
+/// page Équipe).
+///
+/// NOTE(backend) : la création d'un compte personnel (AVS, médecin...) se
+/// fait via `POST /auth/admin/personnel`, réservé au rôle **administrateur**
+/// (voir `INTEGRATION.md`, section 5 — le coordonnateur, lui, gère patients /
+/// affectations / personnel en LECTURE seule). Cette page reste donc pour
+/// l'instant une invite à contacter un administrateur plutôt qu'un vrai
+/// formulaire de création, pour ne pas donner l'illusion qu'un compte a été
+/// créé alors qu'aucun endpoint accessible au coordonnateur ne le permet.
+class CoordonnateurAvsFormPage extends StatelessWidget {
   const CoordonnateurAvsFormPage({super.key});
-
-  @override
-  ConsumerState<CoordonnateurAvsFormPage> createState() => _CoordonnateurAvsFormPageState();
-}
-
-class _CoordonnateurAvsFormPageState extends ConsumerState<CoordonnateurAvsFormPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _nom = TextEditingController();
-  final _prenom = TextEditingController();
-  final _telephone = TextEditingController();
-
-  @override
-  void dispose() {
-    _nom.dispose();
-    _prenom.dispose();
-    _telephone.dispose();
-    super.dispose();
-  }
-
-  String? _requis(String? v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null;
-
-  void _enregistrer() {
-    if (!_formKey.currentState!.validate()) return;
-
-    ref.read(avsListProvider.notifier).ajouter(
-          Avs(
-            id: 'avs_${DateTime.now().millisecondsSinceEpoch}',
-            nom: _nom.text.trim(),
-            prenom: _prenom.text.trim(),
-            telephone: _telephone.text.trim(),
-            statut: StatutAvs.disponible,
-            patientsAssignes: 0,
-          ),
-        );
-
-    context.showInfo('Agent AVS ajouté avec succès.');
-    Navigator.of(context).maybePop();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,25 +27,33 @@ class _CoordonnateurAvsFormPageState extends ConsumerState<CoordonnateurAvsFormP
         ),
         title: const Text('Ajouter un AVS'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            AppTextField(controller: _prenom, label: 'Prénom', validator: _requis, textInputAction: TextInputAction.next),
-            const SizedBox(height: AppSpacing.sm),
-            AppTextField(controller: _nom, label: 'Nom', validator: _requis, textInputAction: TextInputAction.next),
-            const SizedBox(height: AppSpacing.sm),
-            AppTextField(
-              controller: _telephone,
-              label: 'Téléphone',
-              keyboardType: TextInputType.phone,
-              validator: _requis,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            AppPrimaryButton(label: 'Enregistrer l\'agent AVS', onPressed: _enregistrer),
-          ],
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(color: AppColors.primarySurface, shape: BoxShape.circle),
+                child: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.primary, size: 36),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Création réservée à l\'administrateur',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Les comptes du personnel (AVS, médecin…) sont créés par un compte administrateur. '
+                'Demande à un administrateur de provisionner ce nouvel agent AVS ; il apparaîtra '
+                'automatiquement dans l\'équipe une fois son compte créé.',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

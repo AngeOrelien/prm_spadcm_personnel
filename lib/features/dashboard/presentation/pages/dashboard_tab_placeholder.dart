@@ -8,14 +8,15 @@ import '../widgets/app_dashboard_header.dart';
 /// itération — voir le feature `coordonnateur` pour un exemple complet.
 class DashboardTabPlaceholder extends StatelessWidget {
   final String label;
+  final bool showBackButton;
 
-  const DashboardTabPlaceholder({super.key, required this.label});
+  const DashboardTabPlaceholder({super.key, required this.label, this.showBackButton = false});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        AppDashboardHeader.page(title: label),
+        AppDashboardHeader.page(title: label, showBackButton: showBackButton),
         const Divider(height: 1),
         Expanded(
           child: Center(

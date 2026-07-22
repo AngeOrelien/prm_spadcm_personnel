@@ -24,20 +24,25 @@ class CoordonnateurAccueilPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final personnel = ref.watch(authControllerProvider).value;
-    final patients = ref.watch(patientsListProvider);
-    final avsListe = ref.watch(avsListProvider);
-    final affectations = ref.watch(affectationsListProvider);
+    final patientsAsync = ref.watch(patientsListProvider);
+    final avsAsync = ref.watch(avsListProvider);
+    final affectationsAsync = ref.watch(affectationsListProvider);
     final rapportsEnAttente = ref.watch(rapportsEnAttenteProvider);
-    final rapports = ref.watch(rapportsListProvider);
+    final rapportsAsync = ref.watch(rapportsListProvider);
 
+    final patients = patientsAsync.whenOrNull(data: (v) => v) ?? const <Patient>[];
+    final avsListe = avsAsync.whenOrNull(data: (v) => v) ?? const <Avs>[];
+    final affectations = affectationsAsync.whenOrNull(data: (v) => v) ?? const <Affectation>[];
+    final rapports = rapportsAsync.whenOrNull(data: (v) => v) ?? const <RapportAvs>[];
     final avsDisponibles = avsListe.where((a) => a.statut == StatutAvs.disponible).length;
+    final chargementInitial = patientsAsync.isLoading && !patientsAsync.hasValue;
 
     return Column(
       children: [
         AppDashboardHeader.greeting(
           nomComplet: personnel?.nomComplet ?? '',
           libelleRole: 'Coordonnateur',
-          onTapProfil: () => context.go(AppRoutes.coordonnateurProfil),
+          onTapProfil: () => context.push(AppRoutes.coordonnateurProfil),
           actions: [
             HeaderAction(
               icon: Icons.notifications_outlined,
@@ -45,86 +50,101 @@ class CoordonnateurAccueilPage extends ConsumerWidget {
               badge: rapportsEnAttente > 0,
               onTap: () => context.showInfo('Notifications bientôt disponibles.'),
             ),
-            HeaderAction(
-              icon: Icons.settings_outlined,
-              tooltip: 'Paramètres',
-              onTap: () => context.go(AppRoutes.coordonnateurProfil),
-            ),
           ],
         ),
         const Divider(height: 1),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: AppSpacing.sm,
-                  crossAxisSpacing: AppSpacing.sm,
-                  childAspectRatio: 1.5,
-                  children: [
-                    StatCard(
-                      valeur: '${patients.length}',
-                      libelle: 'Patients suivis',
-                      icon: Icons.people_alt_outlined,
-                      couleur: AppColors.primary,
-                      onTap: () => context.go(AppRoutes.coordonnateurPatients),
-                    ),
-                    StatCard(
-                      valeur: '${avsListe.length}',
-                      libelle: '$avsDisponibles AVS disponibles',
-                      icon: Icons.badge_outlined,
-                      couleur: AppColors.info,
-                      onTap: () => context.go(AppRoutes.coordonnateurEquipe),
-                    ),
-                    StatCard(
-                      valeur: '${affectations.length}',
-                      libelle: 'Affectations actives',
-                      icon: Icons.assignment_ind_outlined,
-                      couleur: AppColors.roleCoordonnateur,
-                      onTap: () => context.push(AppRoutes.coordonnateurAffectations),
-                    ),
-                    StatCard(
-                      valeur: '$rapportsEnAttente',
-                      libelle: 'Rapports à valider',
-                      icon: Icons.fact_check_outlined,
-                      couleur: AppColors.secondary,
-                      onTap: () => context.go(AppRoutes.coordonnateurRapports),
-                    ),
-                  ],
-                ),
-              ),
-              SectionTitle(
-                titre: 'Rapports récents des AVS',
-                trailing: TextButton(
-                  onPressed: () => context.go(AppRoutes.coordonnateurRapports),
-                  child: const Text('Tout voir'),
-                ),
-              ),
-              for (final rapport in rapports.take(3))
-                _RapportApercu(rapport: rapport, avsListe: avsListe, patients: patients),
-              const SizedBox(height: AppSpacing.sm),
-              SectionTitle(titre: 'Équipe AVS'),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    for (final avs in avsListe)
-                      Chip(
-                        avatar: InitialsAvatar(nomComplet: avs.nomComplet, couleur: avs.statut.couleur),
-                        label: Text(avs.nomComplet),
-                        backgroundColor: AppColors.surfaceMuted,
+          child: chargementInitial
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(patientsListProvider);
+              ref.invalidate(avsListProvider);
+              ref.invalidate(affectationsListProvider);
+              ref.invalidate(rapportsListProvider);
+              ref.invalidate(rapportsEnAttenteListProvider);
+            },
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: AppSpacing.sm,
+                    crossAxisSpacing: AppSpacing.sm,
+                    childAspectRatio: 1.3,
+                    children: [
+                      StatCard(
+                        valeur: '${patients.length}',
+                        libelle: 'Patients suivis',
+                        icon: Icons.people_alt_outlined,
+                        couleur: AppColors.primary,
+                        onTap: () => context.go(AppRoutes.coordonnateurPatients),
                       ),
-                  ],
+                      StatCard(
+                        valeur: '${avsListe.length}',
+                        libelle: '$avsDisponibles AVS disponibles',
+                        icon: Icons.badge_outlined,
+                        couleur: AppColors.info,
+                        onTap: () => context.go(AppRoutes.coordonnateurEquipe),
+                      ),
+                      StatCard(
+                        valeur: '${affectations.where((a) => a.active).length}',
+                        libelle: 'Affectations actives',
+                        icon: Icons.assignment_ind_outlined,
+                        couleur: AppColors.roleCoordonnateur,
+                        onTap: () => context.push(AppRoutes.coordonnateurAffectations),
+                      ),
+                      StatCard(
+                        valeur: '$rapportsEnAttente',
+                        libelle: 'Rapports à valider',
+                        icon: Icons.fact_check_outlined,
+                        couleur: AppColors.secondary,
+                        onTap: () => context.go(AppRoutes.coordonnateurRapports),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                SectionTitle(
+                  titre: 'Rapports récents des AVS',
+                  trailing: TextButton(
+                    onPressed: () => context.go(AppRoutes.coordonnateurRapports),
+                    child: const Text('Tout voir'),
+                  ),
+                ),
+                if (rapports.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Text('Aucun rapport pour le moment.', style: Theme.of(context).textTheme.bodySmall),
+                  )
+                else
+                  for (final rapport in rapports.take(3))
+                    _RapportApercu(rapport: rapport, avsListe: avsListe, patients: patients),
+                const SizedBox(height: AppSpacing.sm),
+                SectionTitle(titre: 'Équipe AVS'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      for (final avs in avsListe)
+                        GestureDetector(
+                          onTap: () => context.push(AppRoutes.coordonnateurAvsDetail(avs.id)),
+                          child: Chip(
+                            avatar: InitialsAvatar(nomComplet: avs.nomComplet, couleur: avs.statut.couleur),
+                            label: Text(avs.nomComplet),
+                            backgroundColor: AppColors.surfaceMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

@@ -4,7 +4,6 @@ import '../features/auth/domain/entities/personnel.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_accueil_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_equipe_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_patients_page.dart';
-import '../features/coordonnateur/presentation/pages/coordonnateur_profil_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_rapports_page.dart';
 import 'app_routes.dart';
 
@@ -50,8 +49,9 @@ class QuickAction {
 /// liste des onglets de sa bottom navigation, et actions rapides du menu
 /// latéral (peut être vide : le menu ne s'affiche alors pas du tout).
 ///
-/// Le dernier onglet de chaque rôle est conventionnellement "Profil" — le
-/// header y renvoie quand on tape sur l'avatar (voir [RoleDashboardShell]).
+/// "Profil" n'est PLUS un onglet de bottom navigation pour aucun rôle : il
+/// est accessible pour tous depuis le menu "⋮" du header (voir
+/// [AppDashboardHeader] / son bouton overflow), façon WhatsApp.
 class RoleDashboardConfig {
   final RolePersonnel role;
   final String libelleRole;
@@ -79,7 +79,6 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
       DashboardTab(label: 'Accueil', icon: Icons.home_outlined, path: AppRoutes.avsAccueil),
       DashboardTab(label: 'Planning', icon: Icons.calendar_month_outlined, path: AppRoutes.avsPlanning),
       DashboardTab(label: 'Patients', icon: Icons.people_alt_outlined, path: AppRoutes.avsPatients),
-      DashboardTab(label: 'Profil', icon: Icons.person_outline, path: AppRoutes.avsProfil),
     ],
   ),
   RolePersonnel.medecin: const RoleDashboardConfig(
@@ -90,7 +89,6 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
       DashboardTab(label: 'Accueil', icon: Icons.home_outlined, path: AppRoutes.medecinAccueil),
       DashboardTab(label: 'Rendez-vous', icon: Icons.event_note_outlined, path: AppRoutes.medecinRendezVous),
       DashboardTab(label: 'Patients', icon: Icons.people_alt_outlined, path: AppRoutes.medecinPatients),
-      DashboardTab(label: 'Profil', icon: Icons.person_outline, path: AppRoutes.medecinProfil),
     ],
   ),
   RolePersonnel.coordonnateur: RoleDashboardConfig(
@@ -126,13 +124,6 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
         path: AppRoutes.coordonnateurRapports,
         pageBuilder: (context) => const CoordonnateurRapportsPage(),
       ),
-      DashboardTab(
-        label: 'Profil',
-        icon: Icons.person_outline,
-        selectedIcon: Icons.person,
-        path: AppRoutes.coordonnateurProfil,
-        pageBuilder: (context) => const CoordonnateurProfilPage(),
-      ),
     ],
     quickActions: const [
       QuickAction(
@@ -160,7 +151,6 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
       DashboardTab(label: 'Accueil', icon: Icons.home_outlined, path: AppRoutes.administrateurAccueil),
       DashboardTab(label: 'Personnel', icon: Icons.badge_outlined, path: AppRoutes.administrateurPersonnel),
       DashboardTab(label: 'Statistiques', icon: Icons.bar_chart_outlined, path: AppRoutes.administrateurStatistiques),
-      DashboardTab(label: 'Profil', icon: Icons.person_outline, path: AppRoutes.administrateurProfil),
     ],
   ),
 };

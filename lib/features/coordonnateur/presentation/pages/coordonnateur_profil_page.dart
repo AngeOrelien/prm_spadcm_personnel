@@ -32,6 +32,7 @@ class _CoordonnateurProfilPageState extends ConsumerState<CoordonnateurProfilPag
         AppDashboardHeader.page(
           title: 'Mon profil',
           leadingIcon: Icons.person_outline,
+          showBackButton: true,
           actions: [
             HeaderAction(
               icon: Icons.edit_outlined,

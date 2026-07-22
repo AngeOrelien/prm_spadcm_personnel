@@ -105,7 +105,7 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    height: 72,
+                    height: 100,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.medical_services_outlined,
                       size: 64,
@@ -113,7 +113,7 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.md),
 
                 Text('Content de te revoir', style: textTheme.headlineMedium, textAlign: TextAlign.center),
                 const SizedBox(height: AppSpacing.sm),

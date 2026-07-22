@@ -39,6 +39,15 @@ abstract class AppRoutes {
   static const coordonnateurAffectations = '/coordonnateur/affectations';
   static const coordonnateurNouveauPatient = '/coordonnateur/patients/nouveau';
   static const coordonnateurNouvelAvs = '/coordonnateur/equipe/nouveau';
+  // Fiches détail plein écran (patient / AVS) + messagerie (stub, à
+  // développer plus tard) — routes paramétrées, construites via les
+  // fonctions ci-dessous plutôt que des constantes fixes.
+  static const coordonnateurPatientDetailPattern = '/coordonnateur/patients/:id';
+  static const coordonnateurAvsDetailPattern = '/coordonnateur/equipe/:id';
+  static const coordonnateurMessagerie = '/coordonnateur/messagerie';
+
+  static String coordonnateurPatientDetail(String id) => '/coordonnateur/patients/$id';
+  static String coordonnateurAvsDetail(String id) => '/coordonnateur/equipe/$id';
 
   // --- Administrateur ---
   static const administrateurDashboard = '/administrateur';

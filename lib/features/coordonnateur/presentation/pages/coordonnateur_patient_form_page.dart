@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../shared/widgets/buttons/app_primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
-import '../../domain/entities/coordonnateur_entities.dart';
 import '../providers/coordonnateur_providers.dart';
 
 /// Page plein écran (ouverte depuis le menu d'actions rapides ou depuis la
-/// page Patients) : formulaire de création d'un patient.
+/// page Patients) : formulaire de création d'un patient, branché sur
+/// `POST /api/patients`.
 class CoordonnateurPatientFormPage extends ConsumerStatefulWidget {
   const CoordonnateurPatientFormPage({super.key});
 
@@ -22,38 +23,85 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
   final _formKey = GlobalKey<FormState>();
   final _nom = TextEditingController();
   final _prenom = TextEditingController();
-  final _age = TextEditingController();
   final _adresse = TextEditingController();
   final _pathologie = TextEditingController();
+  final _telephone = TextEditingController();
+  final _antecedentCtrl = TextEditingController();
+  final _allergieCtrl = TextEditingController();
+
+  DateTime? _dateNaissance;
+  final List<String> _antecedents = [];
+  final List<String> _allergies = [];
+  bool _enregistrement = false;
 
   @override
   void dispose() {
     _nom.dispose();
     _prenom.dispose();
-    _age.dispose();
     _adresse.dispose();
     _pathologie.dispose();
+    _telephone.dispose();
+    _antecedentCtrl.dispose();
+    _allergieCtrl.dispose();
     super.dispose();
   }
 
   String? _requis(String? v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null;
 
-  void _enregistrer() {
+  Future<void> _choisirDateNaissance() async {
+    final aujourdHui = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _dateNaissance ?? DateTime(aujourdHui.year - 70),
+      firstDate: DateTime(1900),
+      lastDate: aujourdHui,
+      helpText: 'Date de naissance',
+    );
+    if (date != null) setState(() => _dateNaissance = date);
+  }
+
+  void _ajouterAntecedent() {
+    final valeur = _antecedentCtrl.text.trim();
+    if (valeur.isEmpty) return;
+    setState(() {
+      _antecedents.add(valeur);
+      _antecedentCtrl.clear();
+    });
+  }
+
+  void _ajouterAllergie() {
+    final valeur = _allergieCtrl.text.trim();
+    if (valeur.isEmpty) return;
+    setState(() {
+      _allergies.add(valeur);
+      _allergieCtrl.clear();
+    });
+  }
+
+  Future<void> _enregistrer() async {
     if (!_formKey.currentState!.validate()) return;
 
-    ref.read(patientsListProvider.notifier).ajouter(
-          Patient(
-            id: 'pat_${DateTime.now().millisecondsSinceEpoch}',
+    setState(() => _enregistrement = true);
+    try {
+      await ref.read(coordonnateurActionsProvider).ajouterPatient(
             nom: _nom.text.trim(),
             prenom: _prenom.text.trim(),
-            age: int.tryParse(_age.text.trim()) ?? 0,
+            dateNaissance: _dateNaissance,
             adresse: _adresse.text.trim(),
             pathologie: _pathologie.text.trim(),
-          ),
-        );
-
-    context.showInfo('Patient ajouté avec succès.');
-    Navigator.of(context).maybePop();
+            antecedents: _antecedents,
+            allergies: _allergies,
+            telephone: _telephone.text.trim().isEmpty ? null : _telephone.text.trim(),
+          );
+      if (!mounted) return;
+      context.showInfo('Patient ajouté avec succès.');
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      context.showError('$e');
+    } finally {
+      if (mounted) setState(() => _enregistrement = false);
+    }
   }
 
   @override
@@ -75,12 +123,16 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
             const SizedBox(height: AppSpacing.sm),
             AppTextField(controller: _nom, label: 'Nom', validator: _requis, textInputAction: TextInputAction.next),
             const SizedBox(height: AppSpacing.sm),
-            AppTextField(
-              controller: _age,
-              label: 'Âge',
-              keyboardType: TextInputType.number,
-              validator: _requis,
-              textInputAction: TextInputAction.next,
+            InkWell(
+              onTap: _choisirDateNaissance,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Date de naissance'),
+                child: Text(
+                  _dateNaissance == null ? 'Sélectionner une date' : _formaterDate(_dateNaissance!),
+                  style: TextStyle(color: _dateNaissance == null ? AppColors.textDisabled : AppColors.textPrimary),
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             AppTextField(
@@ -91,16 +143,107 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
             ),
             const SizedBox(height: AppSpacing.sm),
             AppTextField(
+              controller: _telephone,
+              label: 'Téléphone (optionnel)',
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppTextField(
               controller: _pathologie,
               label: 'Pathologie / besoin principal',
               validator: _requis,
-              textInputAction: TextInputAction.done,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Antécédents médicaux', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),
+            const SizedBox(height: AppSpacing.sm),
+            _ChampAjoutTag(
+              controller: _antecedentCtrl,
+              hint: 'Ex : Diabète type 2',
+              items: _antecedents,
+              onAjouter: _ajouterAntecedent,
+              onSupprimer: (i) => setState(() => _antecedents.removeAt(i)),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Allergies', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),
+            const SizedBox(height: AppSpacing.sm),
+            _ChampAjoutTag(
+              controller: _allergieCtrl,
+              hint: 'Ex : Pénicilline',
+              items: _allergies,
+              onAjouter: _ajouterAllergie,
+              onSupprimer: (i) => setState(() => _allergies.removeAt(i)),
             ),
             const SizedBox(height: AppSpacing.lg),
-            AppPrimaryButton(label: 'Enregistrer le patient', onPressed: _enregistrer),
+            AppPrimaryButton(
+              label: _enregistrement ? 'Enregistrement…' : 'Enregistrer le patient',
+              isLoading: _enregistrement,
+              onPressed: _enregistrer,
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  String _formaterDate(DateTime date) => '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
+
+class _ChampAjoutTag extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final List<String> items;
+  final VoidCallback onAjouter;
+  final ValueChanged<int> onSupprimer;
+
+  const _ChampAjoutTag({
+    required this.controller,
+    required this.hint,
+    required this.items,
+    required this.onAjouter,
+    required this.onSupprimer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: InputDecoration(hintText: hint),
+                onSubmitted: (_) => onAjouter(),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            IconButton.filled(
+              onPressed: onAjouter,
+              icon: const Icon(Icons.add),
+              style: IconButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            ),
+          ],
+        ),
+        if (items.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Chip(
+                  label: Text(items[i]),
+                  onDeleted: () => onSupprimer(i),
+                  backgroundColor: AppColors.surfaceMuted,
+                  side: BorderSide.none,
+                ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

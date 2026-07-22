@@ -10,8 +10,9 @@ import '../../domain/entities/coordonnateur_entities.dart';
 import '../providers/coordonnateur_providers.dart';
 import '../widgets/coordonnateur_widgets.dart';
 
-/// Gestion des patients : liste, recherche, ajout, et assignation rapide
-/// d'un AVS depuis la fiche patient.
+/// Gestion des patients : liste, recherche, ajout. Chaque ligne ouvre
+/// désormais la fiche patient plein écran (voir
+/// `coordonnateur_patient_detail_page.dart`) plutôt qu'un simple aperçu.
 class CoordonnateurPatientsPage extends ConsumerStatefulWidget {
   const CoordonnateurPatientsPage({super.key});
 
@@ -31,20 +32,16 @@ class _CoordonnateurPatientsPageState extends ConsumerState<CoordonnateurPatient
 
   @override
   Widget build(BuildContext context) {
-    final patients = ref.watch(patientsListProvider);
-    final avsListe = ref.watch(avsListProvider);
-
-    final filtres = _requete.isEmpty
-        ? patients
-        : patients
-            .where((p) => p.nomComplet.toLowerCase().contains(_requete.toLowerCase()))
-            .toList();
+    final patientsAsync = ref.watch(patientsListProvider);
 
     return Column(
       children: [
         AppDashboardHeader.page(
           title: 'Patients',
-          subtitle: '${patients.length} patients suivis',
+          subtitle: patientsAsync.maybeWhen(
+            data: (patients) => '${patients.length} patients suivis',
+            orElse: () => null,
+          ),
           leadingIcon: Icons.people_alt_outlined,
           actions: [
             HeaderAction(
@@ -67,41 +64,42 @@ class _CoordonnateurPatientsPageState extends ConsumerState<CoordonnateurPatient
           ),
         ),
         Expanded(
-          child: filtres.isEmpty
-              ? Center(
+          child: patientsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, st) => _ErreurChargement(onReessayer: () => ref.invalidate(patientsListProvider)),
+            data: (patients) {
+              final filtres = _requete.isEmpty
+                  ? patients
+                  : patients.where((p) => p.nomComplet.toLowerCase().contains(_requete.toLowerCase())).toList();
+
+              if (filtres.isEmpty) {
+                return Center(
                   child: Text('Aucun patient trouvé', style: Theme.of(context).textTheme.bodyMedium),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-                  itemCount: filtres.length,
-                  itemBuilder: (context, index) {
-                    final patient = filtres[index];
-                    final avs = _avsDe(avsListe, patient.avsAssigneId);
-                    return _PatientTile(patient: patient, avs: avs);
-                  },
-                ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+                itemCount: filtres.length,
+                itemBuilder: (context, index) => _PatientTile(patient: filtres[index]),
+              );
+            },
+          ),
         ),
       ],
     );
-  }
-
-  Avs? _avsDe(List<Avs> avsListe, String? avsId) {
-    if (avsId == null) return null;
-    for (final a in avsListe) {
-      if (a.id == avsId) return a;
-    }
-    return null;
   }
 }
 
 class _PatientTile extends StatelessWidget {
   final Patient patient;
-  final Avs? avs;
 
-  const _PatientTile({required this.patient, required this.avs});
+  const _PatientTile({required this.patient});
 
   @override
   Widget build(BuildContext context) {
+    final assigne = patient.avsAssigneId != null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
@@ -112,87 +110,41 @@ class _PatientTile extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
         leading: InitialsAvatar(nomComplet: patient.nomComplet),
-        title: Text('${patient.nomComplet} · ${patient.age} ans', style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          patient.age != null ? '${patient.nomComplet} · ${patient.age} ans' : patient.nomComplet,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Text('${patient.pathologie}\n${patient.adresse}'),
         isThreeLine: true,
-        trailing: avs != null
-            ? StatusChip(label: avs!.nomComplet, couleur: AppColors.primary)
-            : StatusChip(label: 'Sans AVS', couleur: AppColors.warning),
-        onTap: () => _ouvrirDetail(context),
+        trailing: assigne
+            ? StatusChip(label: patient.avsAssigneNom ?? 'AVS assigné', couleur: AppColors.primary)
+            : const StatusChip(label: 'Sans AVS', couleur: AppColors.warning),
+        onTap: () => context.push(AppRoutes.coordonnateurPatientDetail(patient.id)),
       ),
-    );
-  }
-
-  void _ouvrirDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    InitialsAvatar(nomComplet: patient.nomComplet),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(patient.nomComplet, style: Theme.of(sheetContext).textTheme.titleLarge),
-                          Text('${patient.age} ans · ${patient.pathologie}'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _LigneInfo(icon: Icons.location_on_outlined, label: patient.adresse),
-                _LigneInfo(
-                  icon: Icons.badge_outlined,
-                  label: avs != null ? 'AVS assigné : ${avs!.nomComplet}' : 'Aucun AVS assigné',
-                ),
-                const SizedBox(height: AppSpacing.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.of(sheetContext).pop();
-                      context.push(AppRoutes.coordonnateurAffectations);
-                    },
-                    icon: const Icon(Icons.assignment_ind_outlined),
-                    label: Text(avs != null ? 'Modifier l\'affectation' : 'Assigner un AVS'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
 
-class _LigneInfo extends StatelessWidget {
-  final IconData icon;
-  final String label;
+class _ErreurChargement extends StatelessWidget {
+  final VoidCallback onReessayer;
 
-  const _LigneInfo({required this.icon, required this.label});
+  const _ErreurChargement({required this.onReessayer});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text(label)),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+            const SizedBox(height: AppSpacing.sm),
+            const Text('Impossible de charger les patients.', textAlign: TextAlign.center),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton(onPressed: onReessayer, child: const Text('Réessayer')),
+          ],
+        ),
       ),
     );
   }

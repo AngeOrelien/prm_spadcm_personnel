@@ -21,6 +21,16 @@ class ApiConstants {
   static const String refreshToken = '/auth/refresh-token';
   static const String me = '/auth/me';
 
+  // --- Coordonnateur : patients, équipe AVS, affectations, rapports ---
+  static const String patients = '/patients';
+  static const String avsEquipe = '/utilisateurs/avs/equipe';
+  static const String assignations = '/assignations';
+  static const String rapports = '/rapports';
+  static const String rapportsEnAttente = '/rapports/en-attente';
+
+  // --- Messagerie (branchement prévu plus tard) ---
+  static const String conversations = '/conversations';
+
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
 }

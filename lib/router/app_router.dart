@@ -6,8 +6,11 @@ import '../features/auth/presentation/pages/login_email_page.dart';
 import '../features/auth/presentation/pages/otp_verification_page.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_affectations_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_avs_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_form_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_patient_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_patient_form_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_profil_page.dart';
 import '../features/dashboard/presentation/pages/dashboard_tab_placeholder.dart';
 import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
 import '../screens/splash_screen.dart';
@@ -101,6 +104,35 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.coordonnateurNouvelAvs,
         builder: (context, state) => const CoordonnateurAvsFormPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.coordonnateurPatientDetailPattern,
+        builder: (context, state) => CoordonnateurPatientDetailPage(patientId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.coordonnateurAvsDetailPattern,
+        builder: (context, state) => CoordonnateurAvsDetailPage(avsId: state.pathParameters['id']!),
+      ),
+
+      // --- Profil : sorti de la bottom navigation pour TOUS les rôles,
+      // atteint désormais via le menu "⋮" du header (voir
+      // `AppDashboardHeader`). Coordonnateur a une vraie page ; les autres
+      // rôles (pas encore développés) retombent sur un placeholder. ---
+      GoRoute(
+        path: AppRoutes.coordonnateurProfil,
+        builder: (context, state) => const CoordonnateurProfilPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.avsProfil,
+        builder: (context, state) => const DashboardTabPlaceholder(label: 'Profil', showBackButton: true),
+      ),
+      GoRoute(
+        path: AppRoutes.medecinProfil,
+        builder: (context, state) => const DashboardTabPlaceholder(label: 'Profil', showBackButton: true),
+      ),
+      GoRoute(
+        path: AppRoutes.administrateurProfil,
+        builder: (context, state) => const DashboardTabPlaceholder(label: 'Profil', showBackButton: true),
       ),
     ],
   );

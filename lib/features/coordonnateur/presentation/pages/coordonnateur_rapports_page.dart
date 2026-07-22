@@ -24,12 +24,13 @@ class _CoordonnateurRapportsPageState extends ConsumerState<CoordonnateurRapport
 
   @override
   Widget build(BuildContext context) {
-    final rapports = ref.watch(rapportsListProvider);
-    final avsListe = ref.watch(avsListProvider);
-    final patients = ref.watch(patientsListProvider);
+    final rapportsAsync = ref.watch(rapportsListProvider);
+    final avsAsync = ref.watch(avsListProvider);
+    final patientsAsync = ref.watch(patientsListProvider);
     final enAttente = ref.watch(rapportsEnAttenteProvider);
 
-    final filtres = _filtre == null ? rapports : rapports.where((r) => r.statut == _filtre).toList();
+    final avsListe = avsAsync.whenOrNull(data: (v) => v) ?? const <Avs>[];
+    final patients = patientsAsync.whenOrNull(data: (v) => v) ?? const <Patient>[];
 
     return Column(
       children: [
@@ -37,13 +38,6 @@ class _CoordonnateurRapportsPageState extends ConsumerState<CoordonnateurRapport
           title: 'Rapports',
           subtitle: '$enAttente rapport(s) en attente de validation',
           leadingIcon: Icons.fact_check_outlined,
-          actions: [
-            HeaderAction(
-              icon: Icons.filter_list,
-              tooltip: 'Filtrer',
-              onTap: () => _ouvrirFiltre(context),
-            ),
-          ],
         ),
         const Divider(height: 1),
         Padding(
@@ -67,25 +61,29 @@ class _CoordonnateurRapportsPageState extends ConsumerState<CoordonnateurRapport
           ),
         ),
         Expanded(
-          child: filtres.isEmpty
-              ? Center(child: Text('Aucun rapport', style: Theme.of(context).textTheme.bodyMedium))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-                  itemCount: filtres.length,
-                  itemBuilder: (context, index) {
-                    final rapport = filtres[index];
-                    final avs = _trouverAvs(avsListe, rapport.avsId);
-                    final patient = _trouverPatient(patients, rapport.patientId);
-                    return _RapportCard(rapport: rapport, avs: avs, patient: patient);
-                  },
-                ),
+          child: rapportsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, st) => _ErreurChargement(onReessayer: () => ref.invalidate(rapportsListProvider)),
+            data: (rapports) {
+              final filtres = _filtre == null ? rapports : rapports.where((r) => r.statut == _filtre).toList();
+              if (filtres.isEmpty) {
+                return Center(child: Text('Aucun rapport', style: Theme.of(context).textTheme.bodyMedium));
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+                itemCount: filtres.length,
+                itemBuilder: (context, index) {
+                  final rapport = filtres[index];
+                  final avs = _trouverAvs(avsListe, rapport.avsId);
+                  final patient = _trouverPatient(patients, rapport.patientId);
+                  return _RapportCard(rapport: rapport, avs: avs, patient: patient);
+                },
+              );
+            },
+          ),
         ),
       ],
     );
-  }
-
-  void _ouvrirFiltre(BuildContext context) {
-    context.showInfo('Utilisez les filtres sous le titre pour trier les rapports.');
   }
 
   Avs? _trouverAvs(List<Avs> liste, String id) {
@@ -127,7 +125,7 @@ class _FiltreChip extends StatelessWidget {
   }
 }
 
-class _RapportCard extends ConsumerWidget {
+class _RapportCard extends ConsumerStatefulWidget {
   final RapportAvs rapport;
   final Avs? avs;
   final Patient? patient;
@@ -135,7 +133,43 @@ class _RapportCard extends ConsumerWidget {
   const _RapportCard({required this.rapport, required this.avs, required this.patient});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RapportCard> createState() => _RapportCardState();
+}
+
+class _RapportCardState extends ConsumerState<_RapportCard> {
+  bool _enCours = false;
+
+  Future<void> _valider() async {
+    setState(() => _enCours = true);
+    try {
+      await ref.read(coordonnateurActionsProvider).validerRapport(widget.rapport.id);
+      if (!mounted) return;
+      context.showInfo('Rapport validé.');
+    } catch (e) {
+      if (!mounted) return;
+      context.showError('$e');
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  Future<void> _rejeter() async {
+    setState(() => _enCours = true);
+    try {
+      await ref.read(coordonnateurActionsProvider).rejeterRapport(widget.rapport.id);
+      if (!mounted) return;
+      context.showInfo('Rapport rejeté.');
+    } catch (e) {
+      if (!mounted) return;
+      context.showError('$e');
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rapport = widget.rapport;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -149,14 +183,14 @@ class _RapportCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              InitialsAvatar(nomComplet: avs?.nomComplet ?? '?'),
+              InitialsAvatar(nomComplet: widget.avs?.nomComplet ?? '?'),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(avs?.nomComplet ?? 'AVS inconnu', style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text('Patient : ${patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
+                    Text(widget.avs?.nomComplet ?? 'AVS inconnu', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('Patient : ${widget.patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
               ),
@@ -166,20 +200,14 @@ class _RapportCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(rapport.resume),
           const SizedBox(height: 4),
-          Text(
-            _formaterDate(rapport.date),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(_formaterDate(rapport.date), style: Theme.of(context).textTheme.bodySmall),
           if (rapport.statut == StatutRapport.enAttente) ...[
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      ref.read(rapportsListProvider.notifier).mettreAJourStatut(rapport.id, StatutRapport.rejete);
-                      context.showInfo('Rapport rejeté.');
-                    },
+                    onPressed: _enCours ? null : _rejeter,
                     icon: const Icon(Icons.close, color: AppColors.error),
                     label: const Text('Rejeter', style: TextStyle(color: AppColors.error)),
                     style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
@@ -188,11 +216,10 @@ class _RapportCard extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () {
-                      ref.read(rapportsListProvider.notifier).mettreAJourStatut(rapport.id, StatutRapport.valide);
-                      context.showInfo('Rapport validé.');
-                    },
-                    icon: const Icon(Icons.check),
+                    onPressed: _enCours ? null : _valider,
+                    icon: _enCours
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check),
                     label: const Text('Valider'),
                   ),
                 ),
@@ -210,5 +237,30 @@ class _RapportCard extends ConsumerWidget {
       'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
     ];
     return '${date.day} ${mois[date.month - 1]} ${date.year}';
+  }
+}
+
+class _ErreurChargement extends StatelessWidget {
+  final VoidCallback onReessayer;
+
+  const _ErreurChargement({required this.onReessayer});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+            const SizedBox(height: AppSpacing.sm),
+            const Text('Impossible de charger les rapports.', textAlign: TextAlign.center),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton(onPressed: onReessayer, child: const Text('Réessayer')),
+          ],
+        ),
+      ),
+    );
   }
 }

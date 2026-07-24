@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/buttons/app_primary_button.dart';
 import '../../../../shared/widgets/buttons/app_social_button.dart';
 import '../../../../shared/widgets/inputs/app_checkbox_tile.dart';
@@ -17,9 +15,12 @@ import '../../../../shared/widgets/misc/app_or_divider.dart';
 import '../providers/auth_providers.dart';
 
 /// Écran de connexion de l'app Personnel (AVS / Médecin / Coordonnateur /
-/// Administrateur). Flux en 2 étapes :
-///   1. Email professionnel + mot de passe -> vérifiés côté serveur.
-///   2. Code OTP envoyé par email -> [OtpVerificationPage].
+/// Administrateur).
+///
+/// ⚠️ OTP désactivé temporairement : email + mot de passe suffisent pour se
+/// connecter (voir `OtpLoginController.connecter`). Le flux à 2 étapes avec
+/// [OtpVerificationPage] sera réactivé plus tard (voir les commentaires dans
+/// `auth_providers.dart` et `auth_remote_datasource.dart`).
 ///
 /// Pas d'inscription ici : les comptes personnel sont provisionnés par un
 /// administrateur, donc pas de lien "Créer un compte".
@@ -43,20 +44,27 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
     super.dispose();
   }
 
+  // ⚠️ OTP désactivé temporairement : `_soumettre` connecte directement
+  // (voir `OtpLoginController.connecter`) au lieu de pousser vers
+  // `AppRoutes.otp`. Le router (redirect sur `authControllerProvider`)
+  // bascule automatiquement vers l'accueil du rôle dès que la session est
+  // marquée "connectée" — pas besoin de naviguer manuellement ici.
+  //
+  // Pour réactiver l'OTP : remplacer l'appel à `controller.connecter` par
+  // `controller.demanderCode`, et restaurer le `context.push(AppRoutes.otp)`
+  // sur succès (voir l'ancienne version commentée dans `auth_providers.dart`).
   Future<void> _soumettre() async {
     if (!_formKey.currentState!.validate()) return;
 
     final controller = ref.read(otpLoginControllerProvider.notifier);
-    final succes = await controller.demanderCode(
+    final succes = await controller.connecter(
       email: _emailController.text.trim(),
       motDePasse: _passwordController.text,
     );
 
     if (!mounted) return;
 
-    if (succes) {
-      context.push(AppRoutes.otp);
-    } else {
+    if (!succes) {
       final erreur = ref.read(otpLoginControllerProvider).errorMessage;
       context.showError(erreur ?? 'Email ou mot de passe incorrect');
     }

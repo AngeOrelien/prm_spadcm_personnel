@@ -7,6 +7,16 @@ import '../../../../shared/widgets/buttons/app_primary_button.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/otp_code_field.dart';
 
+// ⚠️ OTP désactivé temporairement — cet écran n'est plus poussé par
+// `login_email_page.dart` (voir `AppRoutes.otp`, désormais inatteint).
+// `_verifier` et `_renvoyerCode` ci-dessous appellent normalement
+// `OtpLoginController.verifierCode`/`renvoyerCode`, qui sont pour l'instant
+// commentées dans `auth_providers.dart`. Pour réactiver l'OTP :
+//   1. Décommenter les 3 méthodes OTP dans `OtpLoginController`.
+//   2. Restaurer les appels `controller.verifierCode(...)` /
+//      `controller.renvoyerCode()` ci-dessous (au lieu des stubs actuels).
+//   3. Dans `login_email_page.dart`, refaire naviguer `_soumettre` vers
+//      `AppRoutes.otp` après un `demanderCode` réussi.
 class OtpVerificationPage extends ConsumerStatefulWidget {
   const OtpVerificationPage({super.key});
 
@@ -26,32 +36,17 @@ class _OtpVerificationPageState extends ConsumerState<OtpVerificationPage> {
 
   Future<void> _verifier() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final controller = ref.read(otpLoginControllerProvider.notifier);
-    final succes = await controller.verifierCode(_codeController.text.trim());
-
     if (!mounted) return;
-
-    if (!succes) {
-      final erreur = ref.read(otpLoginControllerProvider).errorMessage;
-      context.showError(erreur ?? 'Code invalide');
-      return;
-    }
-    // Le router (redirect sur authControllerProvider) bascule automatiquement
-    // vers l'écran d'accueil dès que la session est marquée "connectée".
+    // OTP désactivé temporairement (voir la note en haut du fichier) :
+    // `controller.verifierCode(...)` est commentée dans `auth_providers.dart`.
+    context.showError('Vérification par code désactivée temporairement.');
   }
 
   Future<void> _renvoyerCode() async {
-    final email = ref.read(otpLoginControllerProvider).email;
-    final controller = ref.read(otpLoginControllerProvider.notifier);
-    final succes = await controller.renvoyerCode();
     if (!mounted) return;
-    if (succes) {
-      context.showInfo('Un nouveau code a été envoyé à $email');
-    } else {
-      final erreur = ref.read(otpLoginControllerProvider).errorMessage;
-      context.showError(erreur ?? 'Impossible de renvoyer le code');
-    }
+    // OTP désactivé temporairement (voir la note en haut du fichier) :
+    // `controller.renvoyerCode()` est commentée dans `auth_providers.dart`.
+    context.showError('Renvoi de code désactivé temporairement.');
   }
 
   @override

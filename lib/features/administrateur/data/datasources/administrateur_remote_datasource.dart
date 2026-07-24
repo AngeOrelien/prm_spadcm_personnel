@@ -1,15 +1,11 @@
 import 'package:dio/dio.dart';
 
-import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/mock/mock_store.dart';
 import '../../../../shared/services/api_client.dart';
 import '../../domain/entities/administrateur_entities.dart';
 import '../models/administrateur_models.dart';
 
-/// Tant que `AppConfig.useMockData` est actif, chaque méthode sert des
-/// données quasi-statiques depuis [MockStore] au lieu d'appeler le backend
-/// (voir `core/config/app_config.dart`).
+/// Toutes les requêtes du feature Administrateur vers `prm-spad-backend`.
 class AdministrateurRemoteDataSource {
   final ApiClient _apiClient;
 
@@ -18,10 +14,6 @@ class AdministrateurRemoteDataSource {
   // --- Utilisateurs (tous rôles) ---
 
   Future<List<Utilisateur>> listerUtilisateurs({String? role, String? search}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.listerUtilisateurs(role: role, search: search);
-    }
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.utilisateurs,
@@ -35,10 +27,6 @@ class AdministrateurRemoteDataSource {
   }
 
   Future<Utilisateur> creerUtilisateur(Map<String, dynamic> corps) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.creerUtilisateur(corps);
-    }
     try {
       final response = await _apiClient.dio.post(ApiConstants.utilisateurs, data: corps);
       return UtilisateurModel.fromJson(response.data['utilisateur'] as Map<String, dynamic>);
@@ -48,11 +36,6 @@ class AdministrateurRemoteDataSource {
   }
 
   Future<void> basculerActivation(String id, bool actif) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      MockStore.basculerActivation(id, actif);
-      return;
-    }
     try {
       await _apiClient.dio.patch('${ApiConstants.utilisateurs}/$id', data: {'actif': actif});
     } on DioException catch (e) {
@@ -63,10 +46,6 @@ class AdministrateurRemoteDataSource {
   // --- Paiements ---
 
   Future<List<Paiement>> listerPaiements() async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.listerPaiements();
-    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.paiements);
       final data = response.data['paiements'] as List;
@@ -79,10 +58,6 @@ class AdministrateurRemoteDataSource {
   // --- Statistiques ---
 
   Future<StatistiquesGlobales> obtenirStatistiques() async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.statistiquesGlobales();
-    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.statistiques);
       return StatistiquesGlobalesModel.fromJson(response.data['statistiques'] as Map<String, dynamic>);
@@ -92,10 +67,6 @@ class AdministrateurRemoteDataSource {
   }
 
   Future<String> exporterStatistiquesPdf() async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return 'mock://export-statistiques-${DateTime.now().millisecondsSinceEpoch}.pdf';
-    }
     try {
       final response = await _apiClient.dio.post(ApiConstants.statistiquesExportPdf);
       return response.data['url']?.toString() ?? '';

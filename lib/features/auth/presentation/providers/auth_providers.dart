@@ -102,44 +102,76 @@ class OtpLoginController extends StateNotifier<OtpLoginState> {
   OtpLoginController(this._authRepository, this._authController)
       : super(const OtpLoginState());
 
-  /// Étape 1 : vérifie email + mot de passe côté serveur, puis déclenche
-  /// l'envoi du code OTP par email si les identifiants sont valides.
-  Future<bool> demanderCode({
+  // ==========================================================================
+  // ⚠️ OTP désactivé temporairement — on réactivera plus tard.
+  //
+  // `demanderCode`/`renvoyerCode`/`verifierCode` (flux à 2 étapes : mot de
+  // passe puis code OTP) sont conservées ci-dessous en commentaire. Pour
+  // réactiver : décommenter ces 3 méthodes, décommenter les méthodes
+  // correspondantes dans `AuthRepository`/`AuthRepositoryImpl`, puis dans
+  // `login_email_page.dart` faire à nouveau naviguer `_soumettre` vers
+  // `AppRoutes.otp` (au lieu d'appeler `connecter` ci-dessous directement).
+  // ==========================================================================
+
+  // /// Étape 1 : vérifie email + mot de passe côté serveur, puis déclenche
+  // /// l'envoi du code OTP par email si les identifiants sont valides.
+  // Future<bool> demanderCode({
+  //   required String email,
+  //   required String motDePasse,
+  // }) async {
+  //   state = state.copyWith(isLoading: true, clearError: true);
+  //   try {
+  //     await _authRepository.demanderCodeConnexion(
+  //       email: email,
+  //       motDePasse: motDePasse,
+  //     );
+  //     state = state.copyWith(
+  //       isLoading: false,
+  //       email: email,
+  //       motDePasse: motDePasse,
+  //       step: OtpLoginStep.saisieCode,
+  //     );
+  //     return true;
+  //   } on AppException catch (e) {
+  //     state = state.copyWith(isLoading: false, errorMessage: e.message);
+  //     return false;
+  //   }
+  // }
+
+  // /// Renvoie un nouveau code OTP en réutilisant l'email + mot de passe déjà
+  // /// validés à l'étape 1 (évite de redemander le mot de passe uniquement
+  // /// pour un renvoi de code).
+  // Future<bool> renvoyerCode() {
+  //   return demanderCode(email: state.email, motDePasse: state.motDePasse);
+  // }
+
+  // Future<bool> verifierCode(String code) async {
+  //   state = state.copyWith(isLoading: true, clearError: true);
+  //   try {
+  //     final personnel = await _authRepository.verifierCodeConnexion(
+  //       email: state.email,
+  //       code: code,
+  //     );
+  //     _authController.connecte(personnel);
+  //     state = state.copyWith(isLoading: false);
+  //     return true;
+  //   } on AppException catch (e) {
+  //     state = state.copyWith(isLoading: false, errorMessage: e.message);
+  //     return false;
+  //   }
+  // }
+
+  /// Connexion temporaire SANS étape OTP : vérifie email + mot de passe et
+  /// connecte directement (voir `AuthRepository.connecterSansOtp`).
+  Future<bool> connecter({
     required String email,
     required String motDePasse,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(isLoading: true, clearError: true, email: email, motDePasse: motDePasse);
     try {
-      await _authRepository.demanderCodeConnexion(
+      final personnel = await _authRepository.connecterSansOtp(
         email: email,
         motDePasse: motDePasse,
-      );
-      state = state.copyWith(
-        isLoading: false,
-        email: email,
-        motDePasse: motDePasse,
-        step: OtpLoginStep.saisieCode,
-      );
-      return true;
-    } on AppException catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.message);
-      return false;
-    }
-  }
-
-  /// Renvoie un nouveau code OTP en réutilisant l'email + mot de passe déjà
-  /// validés à l'étape 1 (évite de redemander le mot de passe uniquement
-  /// pour un renvoi de code).
-  Future<bool> renvoyerCode() {
-    return demanderCode(email: state.email, motDePasse: state.motDePasse);
-  }
-
-  Future<bool> verifierCode(String code) async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final personnel = await _authRepository.verifierCodeConnexion(
-        email: state.email,
-        code: code,
       );
       _authController.connecte(personnel);
       state = state.copyWith(isLoading: false);

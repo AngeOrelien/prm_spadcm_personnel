@@ -9,10 +9,10 @@ final avsRemoteDataSourceProvider = Provider<AvsRemoteDataSource>((ref) {
   return AvsRemoteDataSource(ref.watch(apiClientProvider));
 });
 
-/// Id du personnel AVS connecté, utilisé uniquement en mode maquette (voir
-/// `AppConfig.useMockData`) pour que les données servies correspondent bien
-/// au compte connecté plutôt qu'à un AVS par défaut. Sans effet une fois le
-/// vrai backend branché (l'AVS y est identifié via le JWT).
+/// Id du personnel AVS connecté. Conservé pour compatibilité des signatures,
+/// mais sans effet sur les appels réels au backend : celui-ci identifie
+/// toujours l'AVS via le JWT envoyé dans l'en-tête `Authorization`, jamais
+/// via ce paramètre.
 String _monIdAvs(Ref ref) => ref.watch(authControllerProvider).value?.id ?? 'avs-01';
 
 /// Planning des visites (jour/semaine) de l'AVS connecté.

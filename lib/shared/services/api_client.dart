@@ -25,8 +25,13 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await _storage.getAccessToken();
-          if (token != null && !options.path.contains('/auth/request-otp') &&
-              !options.path.contains('/auth/verify-login-otp')) {
+          // Routes de login : jamais de token (potentiellement périmé) sur
+          // ces appels. `/auth/test/login` est le bypass OTP temporaire, voir
+          // `auth_remote_datasource.dart`.
+          final estUneRouteDeLogin = options.path.contains('/auth/request-otp') ||
+              options.path.contains('/auth/verify-login-otp') ||
+              options.path.contains('/auth/test/login');
+          if (token != null && !estUneRouteDeLogin) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           handler.next(options);

@@ -1,23 +1,38 @@
+import '../config/env_config.dart';
+
 /// Configuration de l'accès au backend Node/Express (prm-spad-backend).
 ///
-/// En développement, le backend tourne en local sur le port 4000.
-/// - Émulateur Android  -> 10.0.2.2 (alias de "localhost" de la machine hôte)
-/// - Simulateur iOS     -> localhost fonctionne directement
-/// - Appareil physique  -> remplace par l'IP locale de ta machine (ex: 192.168.1.x)
+/// L'URL de base est désormais pilotée par `EnvConfig` (voir
+/// `core/config/env_config.dart`), lui-même lu depuis le fichier `.env` à la
+/// racine du projet. Pour basculer entre le backend local et celui déployé
+/// sur Vercel, modifie la ligne `APP_ENV` dans `.env` — rien à changer ici.
 ///
-/// Surcharge possible au lancement sans toucher au code :
-///   flutter run --dart-define=API_BASE_URL=http://192.168.1.50:4000/api
+/// - Émulateur Android + backend local -> `adb reverse tcp:4000 tcp:4000`,
+///   puis `API_BASE_URL_LOCAL=http://localhost:4000/api` dans `.env`.
+/// - Appareil physique sur le même Wi-Fi que la machine -> remplace
+///   temporairement par l'IP locale, ou utilise la surcharge
+///   `--dart-define=API_BASE_URL=http://192.168.1.50:4000/api`.
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:4000/api',
-  );
+  static String get baseUrl => EnvConfig.apiBaseUrl;
 
-  // --- Auth : compte personnel provisionné par un admin, connexion 100% OTP email ---
+  // --- Auth : compte personnel provisionné par un admin, connexion OTP email ---
+  //
+  // ⚠️ Vérification OTP temporairement désactivée côté app (voir
+  // `auth_remote_datasource.dart`, `auth_repository.dart` et
+  // `auth_providers.dart` — blocs commentés "OTP désactivé temporairement").
+  // Les constantes ci-dessous restent définies pour ne rien casser à la
+  // réactivation ; `testLogin` est utilisé en attendant (routes de test du
+  // backend, montées uniquement si NODE_ENV !== 'production').
   static const String requestOtp = '/auth/request-otp';
   static const String verifyLoginOtp = '/auth/verify-login-otp';
+
+  /// Connexion sans étape OTP (email + mot de passe), le temps que la
+  /// vérification par email soit réactivée côté app. Correspond à la route
+  /// `POST /api/auth/test/login` du backend.
+  static const String testLogin = '/auth/test/login';
+
   static const String refreshToken = '/auth/refresh-token';
   static const String me = '/auth/me';
 

@@ -1,8 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/mock/mock_store.dart';
 import '../../../../shared/services/api_client.dart';
 import '../../../coordonnateur/data/models/coordonnateur_models.dart';
 import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
@@ -13,11 +11,9 @@ import '../models/avs_models.dart';
 /// que `CoordonnateurRemoteDataSource` : réutilise l'[ApiClient] unique,
 /// convertit chaque erreur Dio en [AppException] lisible.
 ///
-/// Tant que `AppConfig.useMockData` est actif, chaque méthode sert des
-/// données quasi-statiques depuis [MockStore] au lieu d'appeler le backend
-/// (voir `core/config/app_config.dart`) — utile puisque seul `auth` est
-/// développé côté serveur pour l'instant. `avsId` a une valeur par défaut en
-/// mock (pas de vrai token à décoder) ; le vrai backend l'identifie via JWT.
+/// `avsId` reste un paramètre nommé (avec valeur par défaut) pour ne pas
+/// casser les appelants, mais n'est plus utilisé dans les requêtes : le vrai
+/// backend identifie l'AVS connecté via son JWT, pas via ce paramètre.
 class AvsRemoteDataSource {
   final ApiClient _apiClient;
 
@@ -26,10 +22,6 @@ class AvsRemoteDataSource {
   // --- Planning ---
 
   Future<List<VisitePlanifiee>> obtenirMonPlanning({String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.planningPour(avsId);
-    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.planningAvs);
       final data = response.data['planning'] as List;
@@ -42,10 +34,6 @@ class AvsRemoteDataSource {
   // --- Rapports journaliers ---
 
   Future<List<RapportAvs>> obtenirMesRapports({String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.rapportsDe(avsId);
-    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.rapportsAvs);
       final data = response.data['rapports'] as List;
@@ -56,10 +44,6 @@ class AvsRemoteDataSource {
   }
 
   Future<RapportAvs> creerRapport(Map<String, dynamic> corps, {String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.creerRapport(avsId, corps);
-    }
     try {
       final response = await _apiClient.dio.post(ApiConstants.rapports, data: corps);
       return RapportModel.fromJson(response.data['rapport'] as Map<String, dynamic>);
@@ -71,10 +55,6 @@ class AvsRemoteDataSource {
   // --- Présence / check-in ---
 
   Future<Presence?> presenceDuJour({String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.presenceDuJourPour(avsId);
-    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.presences, queryParameters: {'jour': 'aujourdhui'});
       final data = response.data['presence'];
@@ -86,10 +66,6 @@ class AvsRemoteDataSource {
   }
 
   Future<Presence> checkIn({required double latitude, required double longitude, String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.checkIn(avsId, latitude, longitude);
-    }
     try {
       final response = await _apiClient.dio.post(
         ApiConstants.presenceCheckIn,
@@ -102,10 +78,6 @@ class AvsRemoteDataSource {
   }
 
   Future<Presence> checkOut({String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.checkOut(avsId);
-    }
     try {
       final response = await _apiClient.dio.post(ApiConstants.presenceCheckOut);
       return PresenceModel.fromJson(response.data['presence'] as Map<String, dynamic>);
@@ -117,10 +89,6 @@ class AvsRemoteDataSource {
   // --- Statistiques personnelles de ponctualité ---
 
   Future<StatistiquesPonctualiteAvs> mesStatistiques({String avsId = 'avs-01'}) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(AppConfig.mockLatency);
-      return MockStore.statistiquesPour(avsId);
-    }
     try {
       final response = await _apiClient.dio.get('${ApiConstants.statistiques}/mes-stats');
       final json = response.data['statistiques'] as Map<String, dynamic>;

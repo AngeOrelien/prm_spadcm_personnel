@@ -10,25 +10,47 @@ class AuthRepositoryImpl implements AuthRepository {
 
   AuthRepositoryImpl(this._remoteDataSource, this._storage);
 
-  @override
-  Future<void> demanderCodeConnexion({
-    required String email,
-    required String motDePasse,
-  }) {
-    return _remoteDataSource.demanderOtp(
-      email: email.trim().toLowerCase(),
-      motDePasse: motDePasse,
-    );
-  }
+  // ⚠️ OTP désactivé temporairement — voir `auth_remote_datasource.dart`
+  // pour la marche à suivre pour réactiver. Méthodes conservées en
+  // commentaire.
+
+  // @override
+  // Future<void> demanderCodeConnexion({
+  //   required String email,
+  //   required String motDePasse,
+  // }) {
+  //   return _remoteDataSource.demanderOtp(
+  //     email: email.trim().toLowerCase(),
+  //     motDePasse: motDePasse,
+  //   );
+  // }
+
+  // @override
+  // Future<Personnel> verifierCodeConnexion({
+  //   required String email,
+  //   required String code,
+  // }) async {
+  //   final data = await _remoteDataSource.verifierOtp(
+  //     email: email.trim().toLowerCase(),
+  //     code: code.trim(),
+  //   );
+  //
+  //   await _storage.saveTokens(
+  //     accessToken: data['accessToken'] as String,
+  //     refreshToken: data['refreshToken'] as String,
+  //   );
+  //
+  //   return PersonnelModel.fromJson(data['utilisateur'] as Map<String, dynamic>);
+  // }
 
   @override
-  Future<Personnel> verifierCodeConnexion({
+  Future<Personnel> connecterSansOtp({
     required String email,
-    required String code,
+    required String motDePasse,
   }) async {
-    final data = await _remoteDataSource.verifierOtp(
+    final data = await _remoteDataSource.connecterSansOtp(
       email: email.trim().toLowerCase(),
-      code: code.trim(),
+      motDePasse: motDePasse,
     );
 
     await _storage.saveTokens(

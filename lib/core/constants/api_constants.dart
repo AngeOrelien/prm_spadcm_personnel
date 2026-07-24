@@ -28,6 +28,24 @@ class ApiConstants {
   static const String rapports = '/rapports';
   static const String rapportsEnAttente = '/rapports/en-attente';
 
+  // --- AVS : planning, rapports journaliers, présence ---
+  static const String planningAvs = '/assignations/mon-planning';
+  static const String rapportsAvs = '/rapports/mes-rapports';
+  static const String presences = '/presences';
+  static const String presenceCheckIn = '/presences/check-in';
+  static const String presenceCheckOut = '/presences/check-out';
+
+  // --- Administrateur : utilisateurs, paiements, statistiques ---
+  static const String utilisateurs = '/utilisateurs';
+  static const String paiements = '/paiements';
+  static const String souscriptions = '/souscriptions';
+  static const String statistiques = '/statistiques';
+  static const String statistiquesExportPdf = '/statistiques/export-pdf';
+
+  // --- Médecin (rôle en étude) : dossiers, traitements, rendez-vous ---
+  static const String traitements = '/traitements';
+  static const String rendezvous = '/rendezvous';
+
   // --- Messagerie (branchement prévu plus tard) ---
   static const String conversations = '/conversations';
 

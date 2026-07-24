@@ -64,6 +64,7 @@ class PatientModel {
       pathologie: json['pathologie'] ?? '',
       antecedents: (json['antecedents'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       allergies: (json['allergies'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      difficultesMobilite: (json['difficultesMobilite'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       contactUrgence: contactUrgence,
       telephone: json['telephone'],
       avsAssigneId: avsAssigne != null ? _idDe(avsAssigne) : null,
@@ -80,6 +81,7 @@ class PatientModel {
     required String pathologie,
     List<String> antecedents = const [],
     List<String> allergies = const [],
+    List<String> difficultesMobilite = const [],
     String? telephone,
   }) {
     return {
@@ -90,6 +92,7 @@ class PatientModel {
       'pathologie': pathologie,
       'antecedents': antecedents,
       'allergies': allergies,
+      'difficultesMobilite': difficultesMobilite,
       if (telephone != null && telephone.isNotEmpty) 'telephone': telephone,
     };
   }

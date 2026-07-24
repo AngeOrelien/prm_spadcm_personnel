@@ -72,6 +72,7 @@ class Patient {
   final String pathologie;
   final List<String> antecedents;
   final List<String> allergies;
+  final List<String> difficultesMobilite;
   final ContactUrgence? contactUrgence;
   final String? telephone;
   final String? avsAssigneId;
@@ -87,6 +88,7 @@ class Patient {
     required this.pathologie,
     this.antecedents = const [],
     this.allergies = const [],
+    this.difficultesMobilite = const [],
     this.contactUrgence,
     this.telephone,
     this.avsAssigneId,

@@ -116,7 +116,8 @@ class AppDashboardHeader extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [AppColors.primaryLight, AppColors.primary, AppColors.primaryDark],
+          stops: [0.0, 0.55, 1.0],
         ),
       ),
       child: SafeArea(

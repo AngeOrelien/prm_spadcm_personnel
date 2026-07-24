@@ -61,6 +61,7 @@ class _Contenu extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 _SectionAntecedents(titre: 'Antécédents médicaux', items: patient.antecedents, icon: Icons.history),
                 _SectionAntecedents(titre: 'Allergies', items: patient.allergies, icon: Icons.warning_amber_outlined),
+                _SectionAntecedents(titre: 'Difficultés de mobilité', items: patient.difficultesMobilite, icon: Icons.accessible_outlined),
                 if (patient.contactUrgence != null && !patient.contactUrgence!.estVide)
                   _CarteContactUrgence(contact: patient.contactUrgence!),
                 const SizedBox(height: AppSpacing.lg),

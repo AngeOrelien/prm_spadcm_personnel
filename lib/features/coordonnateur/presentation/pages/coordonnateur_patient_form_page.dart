@@ -28,10 +28,12 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
   final _telephone = TextEditingController();
   final _antecedentCtrl = TextEditingController();
   final _allergieCtrl = TextEditingController();
+  final _mobiliteCtrl = TextEditingController();
 
   DateTime? _dateNaissance;
   final List<String> _antecedents = [];
   final List<String> _allergies = [];
+  final List<String> _difficultesMobilite = [];
   bool _enregistrement = false;
 
   @override
@@ -43,6 +45,7 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
     _telephone.dispose();
     _antecedentCtrl.dispose();
     _allergieCtrl.dispose();
+    _mobiliteCtrl.dispose();
     super.dispose();
   }
 
@@ -78,6 +81,15 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
     });
   }
 
+  void _ajouterDifficulteMobilite() {
+    final valeur = _mobiliteCtrl.text.trim();
+    if (valeur.isEmpty) return;
+    setState(() {
+      _difficultesMobilite.add(valeur);
+      _mobiliteCtrl.clear();
+    });
+  }
+
   Future<void> _enregistrer() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -91,6 +103,7 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
             pathologie: _pathologie.text.trim(),
             antecedents: _antecedents,
             allergies: _allergies,
+            difficultesMobilite: _difficultesMobilite,
             telephone: _telephone.text.trim().isEmpty ? null : _telephone.text.trim(),
           );
       if (!mounted) return;
@@ -174,6 +187,16 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
               items: _allergies,
               onAjouter: _ajouterAllergie,
               onSupprimer: (i) => setState(() => _allergies.removeAt(i)),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Difficultés de mobilité', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),
+            const SizedBox(height: AppSpacing.sm),
+            _ChampAjoutTag(
+              controller: _mobiliteCtrl,
+              hint: 'Ex : Fauteuil roulant',
+              items: _difficultesMobilite,
+              onAjouter: _ajouterDifficulteMobilite,
+              onSupprimer: (i) => setState(() => _difficultesMobilite.removeAt(i)),
             ),
             const SizedBox(height: AppSpacing.lg),
             AppPrimaryButton(

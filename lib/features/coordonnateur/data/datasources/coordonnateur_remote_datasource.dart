@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/mock/mock_store.dart';
 import '../../../../shared/services/api_client.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
 import '../models/coordonnateur_models.dart';
@@ -9,6 +11,10 @@ import '../models/coordonnateur_models.dart';
 /// Même pattern que `AuthRemoteDataSource` : réutilise l'[ApiClient] unique
 /// (token + refresh automatiques déjà gérés), convertit chaque erreur Dio en
 /// [AppException] lisible.
+///
+/// Tant que `AppConfig.useMockData` est actif, chaque méthode sert des
+/// données quasi-statiques depuis [MockStore] au lieu d'appeler le backend
+/// (voir `core/config/app_config.dart`).
 class CoordonnateurRemoteDataSource {
   final ApiClient _apiClient;
 
@@ -17,6 +23,10 @@ class CoordonnateurRemoteDataSource {
   // --- Patients ---
 
   Future<List<Patient>> listerPatients({String? search}) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.patients(search: search);
+    }
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.patients,
@@ -30,6 +40,10 @@ class CoordonnateurRemoteDataSource {
   }
 
   Future<Patient> obtenirPatient(String id) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.patient(id);
+    }
     try {
       final response = await _apiClient.dio.get('${ApiConstants.patients}/$id');
       final json = Map<String, dynamic>.from(response.data['patient'] as Map);
@@ -43,6 +57,10 @@ class CoordonnateurRemoteDataSource {
   }
 
   Future<Patient> creerPatient(Map<String, dynamic> corps) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.ajouterPatient(corps);
+    }
     try {
       final response = await _apiClient.dio.post(ApiConstants.patients, data: corps);
       return PatientModel.fromJson(response.data['patient'] as Map<String, dynamic>);
@@ -54,6 +72,10 @@ class CoordonnateurRemoteDataSource {
   // --- Équipe AVS ---
 
   Future<List<Avs>> listerEquipeAvs() async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.equipeAvs();
+    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.avsEquipe);
       final data = response.data['equipe'] as List;
@@ -66,6 +88,10 @@ class CoordonnateurRemoteDataSource {
   // --- Affectations ---
 
   Future<List<Affectation>> listerAffectations({String? patientId, String? avsId, String? statut}) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.affectationsFiltrees(patientId: patientId, avsId: avsId);
+    }
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.assignations,
@@ -89,6 +115,10 @@ class CoordonnateurRemoteDataSource {
     required DateTime dateDebut,
     String? notes,
   }) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.creerAffectation(patientId: patientId, avsId: avsId, frequence: frequence, dateDebut: dateDebut, notes: notes);
+    }
     try {
       final response = await _apiClient.dio.post(
         ApiConstants.assignations,
@@ -107,6 +137,11 @@ class CoordonnateurRemoteDataSource {
   }
 
   Future<void> terminerAffectation(String id) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      MockStore.terminerAffectation(id);
+      return;
+    }
     try {
       await _apiClient.dio.patch('${ApiConstants.assignations}/$id/terminer');
     } on DioException catch (e) {
@@ -117,6 +152,10 @@ class CoordonnateurRemoteDataSource {
   // --- Rapports ---
 
   Future<List<RapportAvs>> listerRapports({String? patientId, String? avsId}) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.tousLesRapports(patientId: patientId, avsId: avsId);
+    }
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.rapports,
@@ -133,6 +172,10 @@ class CoordonnateurRemoteDataSource {
   }
 
   Future<List<RapportAvs>> listerRapportsEnAttente() async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      return MockStore.rapportsEnAttente();
+    }
     try {
       final response = await _apiClient.dio.get(ApiConstants.rapportsEnAttente);
       final data = response.data['rapports'] as List;
@@ -143,6 +186,11 @@ class CoordonnateurRemoteDataSource {
   }
 
   Future<void> validerRapport(String id) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      MockStore.validerRapport(id);
+      return;
+    }
     try {
       await _apiClient.dio.patch('${ApiConstants.rapports}/$id/valider');
     } on DioException catch (e) {
@@ -151,6 +199,11 @@ class CoordonnateurRemoteDataSource {
   }
 
   Future<void> rejeterRapport(String id, {String? motif}) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(AppConfig.mockLatency);
+      MockStore.rejeterRapport(id, motif: motif);
+      return;
+    }
     try {
       await _apiClient.dio.patch(
         '${ApiConstants.rapports}/$id/rejeter',

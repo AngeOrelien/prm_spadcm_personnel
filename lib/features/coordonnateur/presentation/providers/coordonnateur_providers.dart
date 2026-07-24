@@ -100,6 +100,7 @@ class CoordonnateurActions {
     required String pathologie,
     List<String> antecedents = const [],
     List<String> allergies = const [],
+    List<String> difficultesMobilite = const [],
     String? telephone,
   }) async {
     await _ds.creerPatient(
@@ -111,6 +112,7 @@ class CoordonnateurActions {
         pathologie: pathologie,
         antecedents: antecedents,
         allergies: allergies,
+        difficultesMobilite: difficultesMobilite,
         telephone: telephone,
       ),
     );

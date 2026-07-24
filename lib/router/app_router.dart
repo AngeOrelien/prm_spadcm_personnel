@@ -2,9 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/administrateur/presentation/pages/administrateur_nouvel_utilisateur_page.dart';
 import '../features/auth/presentation/pages/login_email_page.dart';
 import '../features/auth/presentation/pages/otp_verification_page.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
+import '../features/avs/presentation/pages/avs_profil_page.dart';
+import '../features/avs/presentation/pages/avs_rapport_form_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_affectations_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_form_page.dart';
@@ -13,6 +16,7 @@ import '../features/coordonnateur/presentation/pages/coordonnateur_patient_form_
 import '../features/coordonnateur/presentation/pages/coordonnateur_profil_page.dart';
 import '../features/dashboard/presentation/pages/dashboard_tab_placeholder.dart';
 import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
+import '../features/medecin/presentation/pages/medecin_patient_detail_page.dart';
 import '../screens/splash_screen.dart';
 import 'app_routes.dart';
 import 'role_dashboards.dart';
@@ -90,6 +94,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.otp, builder: (context, state) => const OtpVerificationPage()),
       for (final config in roleDashboards.values) _buildDashboardRoute(config),
 
+      // --- AVS : pages plein écran atteintes via context.push depuis un
+      // onglet (bouton "+" du header), donc sans bottom navigation. ---
+      GoRoute(
+        path: AppRoutes.avsNouveauRapport,
+        builder: (context, state) => const AvsRapportFormPage(),
+      ),
+
       // --- Coordonnateur : pages plein écran (ouvertes via context.push,
       // donc sans bottom navigation), atteintes depuis le menu d'actions
       // rapides ou depuis un bouton "+" au sein d'un onglet. ---
@@ -114,17 +125,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => CoordonnateurAvsDetailPage(avsId: state.pathParameters['id']!),
       ),
 
+      // --- Médecin : fiche patient (dossier médical) ---
+      GoRoute(
+        path: AppRoutes.medecinPatientDetailPattern,
+        builder: (context, state) => MedecinPatientDetailPage(patientId: state.pathParameters['id']!),
+      ),
+
+      // --- Administrateur : création de compte personnel ---
+      GoRoute(
+        path: AppRoutes.administrateurNouvelUtilisateur,
+        builder: (context, state) => const AdministrateurNouvelUtilisateurPage(),
+      ),
+
       // --- Profil : sorti de la bottom navigation pour TOUS les rôles,
       // atteint désormais via le menu "⋮" du header (voir
-      // `AppDashboardHeader`). Coordonnateur a une vraie page ; les autres
-      // rôles (pas encore développés) retombent sur un placeholder. ---
+      // `AppDashboardHeader`). Coordonnateur et AVS ont une vraie page ;
+      // médecin et administrateur (rôles plus légers) retombent pour
+      // l'instant sur un placeholder. ---
       GoRoute(
         path: AppRoutes.coordonnateurProfil,
         builder: (context, state) => const CoordonnateurProfilPage(),
       ),
       GoRoute(
         path: AppRoutes.avsProfil,
-        builder: (context, state) => const DashboardTabPlaceholder(label: 'Profil', showBackButton: true),
+        builder: (context, state) => const AvsProfilPage(),
       ),
       GoRoute(
         path: AppRoutes.medecinProfil,

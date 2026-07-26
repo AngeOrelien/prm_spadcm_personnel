@@ -48,6 +48,10 @@ class Avs {
   final String? email;
   final StatutAvs statut;
   final int patientsAssignes;
+  // Pas encore renvoyé par le backend (le modèle `Utilisateur` n'a pas de
+  // champ `photoUrl` pour l'instant) — voir `BACKEND_TODO.md`. Le champ est
+  // déjà câblé côté app pour afficher la vraie photo dès qu'elle existera.
+  final String? photoUrl;
 
   const Avs({
     required this.id,
@@ -57,6 +61,7 @@ class Avs {
     this.email,
     required this.statut,
     required this.patientsAssignes,
+    this.photoUrl,
   });
 
   String get nomComplet => '$prenom $nom';
@@ -77,6 +82,8 @@ class Patient {
   final String? telephone;
   final String? avsAssigneId;
   final String? avsAssigneNom;
+  final String? photoUrl;
+  final String? email;
 
   const Patient({
     required this.id,
@@ -93,6 +100,8 @@ class Patient {
     this.telephone,
     this.avsAssigneId,
     this.avsAssigneNom,
+    this.photoUrl,
+    this.email,
   });
 
   String get nomComplet => '$prenom $nom';
@@ -124,6 +133,25 @@ class Affectation {
 
 enum StatutRapport { enAttente, valide, rejete }
 
+/// Ponctualité de la SAISIE du rapport (heure de remise vs heure limite de
+/// l'affectation) — distincte de [StatutRapport], qui est le statut de
+/// VALIDATION médicale. Alimente les stats personnelles de ponctualité de
+/// l'AVS (voir `avs/presentation/providers/avs_providers.dart`). Correspond
+/// au champ `statutRemise` du backend (`'a_temps' | 'en_retard'`, voir
+/// `utils/statutRemise.js`).
+enum StatutRemiseRapport { aTemps, enRetard }
+
+StatutRemiseRapport? statutRemiseFromString(String? value) {
+  switch (value) {
+    case 'a_temps':
+      return StatutRemiseRapport.aTemps;
+    case 'en_retard':
+      return StatutRemiseRapport.enRetard;
+    default:
+      return null;
+  }
+}
+
 class RapportAvs {
   final String id;
   final String avsId;
@@ -132,6 +160,7 @@ class RapportAvs {
   final String resume;
   final StatutRapport statut;
   final String? motifRejet;
+  final StatutRemiseRapport? statutRemise;
 
   const RapportAvs({
     required this.id,
@@ -141,6 +170,7 @@ class RapportAvs {
     required this.resume,
     this.statut = StatutRapport.enAttente,
     this.motifRejet,
+    this.statutRemise,
   });
 
   RapportAvs copierAvec({StatutRapport? statut}) {
@@ -152,6 +182,93 @@ class RapportAvs {
       resume: resume,
       statut: statut ?? this.statut,
       motifRejet: motifRejet,
+      statutRemise: statutRemise,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Messagerie — alignées sur `POST/GET /api/conversations` et
+// `/api/conversations/:id/messages` (voir `messagerieController.js`).
+// ---------------------------------------------------------------------------
+
+class Conversation {
+  final String id;
+  final String? nom;
+  final String? interlocuteurId;
+  final String? interlocuteurNom;
+  final String? interlocuteurSousTitre;
+  final String? dernierMessage;
+  final DateTime? dernierMessageAt;
+  final bool nonLue;
+
+  const Conversation({
+    required this.id,
+    this.nom,
+    this.interlocuteurId,
+    this.interlocuteurNom,
+    this.interlocuteurSousTitre,
+    this.dernierMessage,
+    this.dernierMessageAt,
+    this.nonLue = false,
+  });
+}
+
+class MessageConversation {
+  final String id;
+  final String conversationId;
+  final String expediteurId;
+  final String? expediteurNom;
+  final String contenu;
+  final DateTime creeLe;
+  final bool deMoi;
+
+  const MessageConversation({
+    required this.id,
+    required this.conversationId,
+    required this.expediteurId,
+    this.expediteurNom,
+    required this.contenu,
+    required this.creeLe,
+    required this.deMoi,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Présences / check-in — alignées sur `/api/presences` (voir
+// `presenceController.js`). Sert à l'onglet "Check-in" du coordonnateur.
+// ---------------------------------------------------------------------------
+
+enum StatutPresenceCoordonnateur { present, retard, absent }
+
+StatutPresenceCoordonnateur statutPresenceCoordonnateurFromString(String? value) {
+  switch (value) {
+    case 'retard':
+      return StatutPresenceCoordonnateur.retard;
+    case 'absent':
+      return StatutPresenceCoordonnateur.absent;
+    case 'present':
+    default:
+      return StatutPresenceCoordonnateur.present;
+  }
+}
+
+class PresenceAvs {
+  final String? id;
+  final String avsId;
+  final String? avsNom;
+  final DateTime date;
+  final DateTime? heureCheckIn;
+  final DateTime? heureCheckOut;
+  final StatutPresenceCoordonnateur statut;
+
+  const PresenceAvs({
+    this.id,
+    required this.avsId,
+    this.avsNom,
+    required this.date,
+    this.heureCheckIn,
+    this.heureCheckOut,
+    required this.statut,
+  });
 }

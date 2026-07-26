@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,6 +28,8 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
   final _adresse = TextEditingController();
   final _pathologie = TextEditingController();
   final _telephone = TextEditingController();
+  final _email = TextEditingController();
+  final _motDePasse = TextEditingController();
   final _antecedentCtrl = TextEditingController();
   final _allergieCtrl = TextEditingController();
   final _mobiliteCtrl = TextEditingController();
@@ -35,6 +39,23 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
   final List<String> _allergies = [];
   final List<String> _difficultesMobilite = [];
   bool _enregistrement = false;
+  bool _motDePasseVisible = false;
+
+  static const _caracteresMotDePasse = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+
+  /// Génère un mot de passe par défaut lisible (8 caractères, sans
+  /// caractères ambigus comme "0/O" ou "1/l") pour le premier accès du
+  /// patient/de la famille — à faire changer dès la première connexion.
+  String _genererMotDePasse() {
+    final rng = Random();
+    return List.generate(8, (_) => _caracteresMotDePasse[rng.nextInt(_caracteresMotDePasse.length)]).join();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _motDePasse.text = _genererMotDePasse();
+  }
 
   @override
   void dispose() {
@@ -43,6 +64,8 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
     _adresse.dispose();
     _pathologie.dispose();
     _telephone.dispose();
+    _email.dispose();
+    _motDePasse.dispose();
     _antecedentCtrl.dispose();
     _allergieCtrl.dispose();
     _mobiliteCtrl.dispose();
@@ -50,6 +73,12 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
   }
 
   String? _requis(String? v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null;
+
+  String? _emailOptionnel(String? v) {
+    if (v == null || v.trim().isEmpty) return null;
+    final valide = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim());
+    return valide ? null : 'Adresse email invalide';
+  }
 
   Future<void> _choisirDateNaissance() async {
     final aujourdHui = DateTime.now();
@@ -105,6 +134,8 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
             allergies: _allergies,
             difficultesMobilite: _difficultesMobilite,
             telephone: _telephone.text.trim().isEmpty ? null : _telephone.text.trim(),
+            email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+            motDePasse: _email.text.trim().isEmpty ? null : _motDePasse.text.trim(),
           );
       if (!mounted) return;
       context.showInfo('Patient ajouté avec succès.');
@@ -167,6 +198,45 @@ class _CoordonnateurPatientFormPageState extends ConsumerState<CoordonnateurPati
               label: 'Pathologie / besoin principal',
               validator: _requis,
               textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Accès de connexion (optionnel)', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),
+            const SizedBox(height: 4),
+            Text(
+              'Si un email est renseigné, un mot de passe par défaut est généré pour la première connexion du patient (ou de sa famille). Il pourra être changé plus tard.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppTextField(
+              controller: _email,
+              label: 'Email du patient / de la famille',
+              keyboardType: TextInputType.emailAddress,
+              validator: _emailOptionnel,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _motDePasse,
+              readOnly: true,
+              obscureText: !_motDePasseVisible,
+              decoration: InputDecoration(
+                labelText: 'Mot de passe par défaut',
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: _motDePasseVisible ? 'Masquer' : 'Afficher',
+                      icon: Icon(_motDePasseVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      onPressed: () => setState(() => _motDePasseVisible = !_motDePasseVisible),
+                    ),
+                    IconButton(
+                      tooltip: 'Régénérer',
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () => setState(() => _motDePasse.text = _genererMotDePasse()),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Antécédents médicaux', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),

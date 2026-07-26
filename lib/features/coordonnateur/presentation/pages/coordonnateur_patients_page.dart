@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../router/app_routes.dart';
+import '../../../../shared/widgets/misc/scroll_refresh_listener.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
 import '../providers/coordonnateur_providers.dart';
@@ -78,10 +79,16 @@ class _CoordonnateurPatientsPageState extends ConsumerState<CoordonnateurPatient
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-                itemCount: filtres.length,
-                itemBuilder: (context, index) => _PatientTile(patient: filtres[index]),
+              return RefreshIndicator(
+                onRefresh: () async => ref.invalidate(patientsListProvider),
+                child: ScrollRefreshListener(
+                  onAtteintLeBas: () => ref.invalidate(patientsListProvider),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+                    itemCount: filtres.length,
+                    itemBuilder: (context, index) => _PatientTile(patient: filtres[index]),
+                  ),
+                ),
               );
             },
           ),
@@ -109,7 +116,7 @@ class _PatientTile extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
-        leading: InitialsAvatar(nomComplet: patient.nomComplet),
+        leading: InitialsAvatar(nomComplet: patient.nomComplet, photoUrl: patient.photoUrl),
         title: Text(
           patient.age != null ? '${patient.nomComplet} · ${patient.age} ans' : patient.nomComplet,
           style: const TextStyle(fontWeight: FontWeight.w600),

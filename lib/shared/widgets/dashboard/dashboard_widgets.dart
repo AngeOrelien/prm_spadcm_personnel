@@ -134,13 +134,23 @@ class StatusChip extends StatelessWidget {
   }
 }
 
-/// Petit avatar rond avec initiales, pour lignes de listes.
+/// Petit avatar rond : affiche la photo de profil (`photoUrl`) si disponible,
+/// sinon retombe sur les initiales — utilisé partout où l'on montre un AVS ou
+/// un patient (listes, fiches détail, en-têtes). Un seul widget pour ne pas
+/// dupliquer la logique de fallback à chaque endroit.
 class InitialsAvatar extends StatelessWidget {
   final String nomComplet;
   final Color? couleur;
   final double radius;
+  final String? photoUrl;
 
-  const InitialsAvatar({super.key, required this.nomComplet, this.couleur, this.radius = 20});
+  const InitialsAvatar({
+    super.key,
+    required this.nomComplet,
+    this.couleur,
+    this.radius = 20,
+    this.photoUrl,
+  });
 
   String get _initiales {
     final mots = nomComplet.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty);
@@ -152,10 +162,23 @@ class InitialsAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = couleur ?? AppColors.primary;
+    final url = photoUrl;
+    if (url != null && url.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: c.withOpacity(0.12),
+        backgroundImage: NetworkImage(url),
+        // En cas d'échec de chargement (URL périmée, hors-ligne...) on
+        // retombe silencieusement sur les initiales plutôt que de laisser
+        // une icône d'erreur.
+        onBackgroundImageError: (_, __) {},
+        child: null,
+      );
+    }
     return CircleAvatar(
       radius: radius,
       backgroundColor: c.withOpacity(0.12),
-      child: Text(_initiales, style: TextStyle(color: c, fontWeight: FontWeight.w600)),
+      child: Text(_initiales, style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: radius * 0.55)),
     );
   }
 }

@@ -43,15 +43,31 @@ class ApiConstants {
   static const String rapports = '/rapports';
   static const String rapportsEnAttente = '/rapports/en-attente';
 
-  // --- AVS : planning, rapports journaliers, présence ---
-  static const String planningAvs = '/assignations/mon-planning';
-  static const String rapportsAvs = '/rapports/mes-rapports';
+  // --- AVS : affectations, rapports journaliers, présence ---
+  //
+  // ⚠️ `/assignations/mon-planning` et `/rapports/mes-rapports` n'existent
+  // PAS côté backend (404 avant ce correctif) : le vrai endpoint
+  // d'affectations est `/assignations` (filtrable par `avsId`/`statut`,
+  // voir `assignationRoutes.js`), et `/rapports` s'auto-filtre déjà sur
+  // l'AVS connecté (voir `rapportController.listerRapports` :
+  // `if (req.user.role === 'avs') filtre.avsId = req.user._id`). L'app
+  // utilise donc directement ces routes de base — voir `BACKEND-TODO.md`
+  // pour la vraie route de planning (occurrences datées) qui manque encore.
   static const String presences = '/presences';
   static const String presenceCheckIn = '/presences/check-in';
   static const String presenceCheckOut = '/presences/check-out';
+  static const String presenceMoiAujourdhui = '/presences/moi/aujourdhui';
 
   // --- Administrateur : utilisateurs, paiements, statistiques ---
   static const String utilisateurs = '/utilisateurs';
+  // Annuaire par rôle (coordonnateurs / médecins / administrateurs), utilisé
+  // par la messagerie AVS pour lister les interlocuteurs possibles.
+  // ⚠️ Restreint à coordonnateur/administrateur côté backend actuellement
+  // (voir `utilisateurRoutes.js`) : un AVS reçoit un 403 sur cette route
+  // tant que le backend n'aura pas été ouvert à son rôle — voir
+  // `BACKEND-TODO.md`. Les appels correspondants dans l'app gèrent déjà ce
+  // cas (repli silencieux sur une liste vide) pour ne rien casser.
+  static String utilisateursParRole(String role) => '/utilisateurs/role/$role';
   static const String paiements = '/paiements';
   static const String souscriptions = '/souscriptions';
   // Le backend monte statsRoutes.js sur `/api/stats` (voir app.js), pas

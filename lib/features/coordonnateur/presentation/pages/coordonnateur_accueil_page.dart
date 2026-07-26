@@ -6,6 +6,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../router/app_routes.dart';
+import '../../../../shared/widgets/misc/scroll_refresh_listener.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
@@ -29,6 +30,7 @@ class CoordonnateurAccueilPage extends ConsumerWidget {
     final affectationsAsync = ref.watch(affectationsListProvider);
     final rapportsEnAttente = ref.watch(rapportsEnAttenteProvider);
     final rapportsAsync = ref.watch(rapportsListProvider);
+    final statsAsync = ref.watch(statistiquesOperationnellesProvider);
 
     final patients = patientsAsync.whenOrNull(data: (v) => v) ?? const <Patient>[];
     final avsListe = avsAsync.whenOrNull(data: (v) => v) ?? const <Avs>[];
@@ -63,8 +65,16 @@ class CoordonnateurAccueilPage extends ConsumerWidget {
               ref.invalidate(affectationsListProvider);
               ref.invalidate(rapportsListProvider);
               ref.invalidate(rapportsEnAttenteListProvider);
+              ref.invalidate(statistiquesOperationnellesProvider);
             },
-            child: ListView(
+            child: ScrollRefreshListener(
+              onAtteintLeBas: () {
+                ref.invalidate(patientsListProvider);
+                ref.invalidate(avsListProvider);
+                ref.invalidate(rapportsListProvider);
+                ref.invalidate(statistiquesOperationnellesProvider);
+              },
+              child: ListView(
               padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
               children: [
                 Padding(
@@ -108,6 +118,54 @@ class CoordonnateurAccueilPage extends ConsumerWidget {
                     ],
                   ),
                 ),
+                statsAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (err, st) => const SizedBox.shrink(),
+                  data: (stats) => Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SectionTitle(titre: 'Aujourd\'hui'),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            _PastilleInfo(
+                              icon: Icons.warning_amber_outlined,
+                              texte: '${stats['alertesOuvertes'] ?? 0} alerte(s) ouverte(s)',
+                              couleur: AppColors.error,
+                            ),
+                            _PastilleInfo(
+                              icon: Icons.event_outlined,
+                              texte: '${stats['rdvAVenir'] ?? 0} rendez-vous à venir',
+                              couleur: AppColors.info,
+                            ),
+                            _PastilleInfo(
+                              icon: Icons.check_circle_outline,
+                              texte: '${stats['avsPresentsAujourdhui'] ?? 0} AVS présents',
+                              couleur: AppColors.success,
+                              onTap: () => context.go(AppRoutes.coordonnateurRapports),
+                            ),
+                            _PastilleInfo(
+                              icon: Icons.person_off_outlined,
+                              texte: '${stats['avsAbsentsAujourdhui'] ?? 0} AVS absents',
+                              couleur: AppColors.warning,
+                              onTap: () => context.go(AppRoutes.coordonnateurRapports),
+                            ),
+                            if ((stats['rapportsEnRetardAujourdhui'] ?? 0) > 0)
+                              _PastilleInfo(
+                                icon: Icons.schedule_outlined,
+                                texte: '${stats['rapportsEnRetardAujourdhui']} rapport(s) en retard',
+                                couleur: AppColors.secondaryDark,
+                                onTap: () => context.go(AppRoutes.coordonnateurRapports),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 SectionTitle(
                   titre: 'Rapports récents des AVS',
                   trailing: TextButton(
@@ -145,6 +203,7 @@ class CoordonnateurAccueilPage extends ConsumerWidget {
                 ),
               ],
             ),
+            ),
           ),
         ),
       ],
@@ -180,36 +239,78 @@ class _RapportApercu extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 6),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.border),
+          onTap: () => context.push(AppRoutes.coordonnateurRapportDetail(rapport.id)),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                InitialsAvatar(nomComplet: avs?.nomComplet ?? '?', photoUrl: avs?.photoUrl),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${avs?.nomComplet ?? 'AVS'} · ${patient?.nomComplet ?? 'Patient'}',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      Text(
+                        rapport.resume,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                StatusChip(label: rapport.statut.libelle, couleur: rapport.statut.couleur),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Petite pastille d'information pour la section "Aujourd'hui" (alertes,
+/// rendez-vous, présences...), alimentée par `/api/stats/operationnel`.
+class _PastilleInfo extends StatelessWidget {
+  final IconData icon;
+  final String texte;
+  final Color couleur;
+  final VoidCallback? onTap;
+
+  const _PastilleInfo({required this.icon, required this.texte, required this.couleur, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: couleur.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: couleur.withOpacity(0.25)),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            InitialsAvatar(nomComplet: avs?.nomComplet ?? '?'),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${avs?.nomComplet ?? 'AVS'} · ${patient?.nomComplet ?? 'Patient'}',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 14),
-                  ),
-                  Text(
-                    rapport.resume,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            StatusChip(label: rapport.statut.libelle, couleur: rapport.statut.couleur),
+            Icon(icon, size: 15, color: couleur),
+            const SizedBox(width: 6),
+            Text(texte, style: TextStyle(color: couleur, fontWeight: FontWeight.w600, fontSize: 12.5)),
           ],
         ),
       ),

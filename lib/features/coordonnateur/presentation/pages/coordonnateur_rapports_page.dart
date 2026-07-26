@@ -1,25 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../router/app_routes.dart';
+import '../../../../shared/widgets/misc/scroll_refresh_listener.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
 import '../providers/coordonnateur_providers.dart';
 import '../widgets/coordonnateur_widgets.dart';
 
-/// Validation des rapports d'intervention rédigés par les AVS : le
-/// coordonnateur peut filtrer par statut puis valider ou rejeter chaque
-/// rapport en attente.
-class CoordonnateurRapportsPage extends ConsumerStatefulWidget {
+extension _StatutPresenceLibelleX on StatutPresenceCoordonnateur {
+  String get libelle => switch (this) {
+    StatutPresenceCoordonnateur.present => 'Présent',
+    StatutPresenceCoordonnateur.retard => 'En retard',
+    StatutPresenceCoordonnateur.absent => 'Absent',
+  };
+
+  Color get couleur => switch (this) {
+    StatutPresenceCoordonnateur.present => AppColors.success,
+    StatutPresenceCoordonnateur.retard => AppColors.warning,
+    StatutPresenceCoordonnateur.absent => AppColors.error,
+  };
+}
+
+/// Onglet "Suivi" du coordonnateur : regroupe la validation des rapports
+/// d'intervention AVS et la vue des check-in/check-out du jour, sous deux
+/// sous-onglets — auparavant deux idées séparées, réunies ici pour que le
+/// coordonnateur ait tout le suivi quotidien au même endroit.
+class CoordonnateurRapportsPage extends StatefulWidget {
   const CoordonnateurRapportsPage({super.key});
 
   @override
-  ConsumerState<CoordonnateurRapportsPage> createState() => _CoordonnateurRapportsPageState();
+  State<CoordonnateurRapportsPage> createState() => _CoordonnateurRapportsPageState();
 }
 
-class _CoordonnateurRapportsPageState extends ConsumerState<CoordonnateurRapportsPage> {
+class _CoordonnateurRapportsPageState extends State<CoordonnateurRapportsPage> with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        AppDashboardHeader.page(
+          title: 'Suivi',
+          subtitle: 'Rapports d\'intervention et check-in des AVS',
+          leadingIcon: Icons.fact_check_outlined,
+        ),
+        const Divider(height: 1),
+        TabBar(
+          controller: _tabController,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primary,
+          tabs: const [
+            Tab(text: 'Rapports'),
+            Tab(text: 'Check-in'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: const [
+              _RapportsTab(),
+              _CheckinsTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sous-onglet Rapports
+// ---------------------------------------------------------------------------
+
+class _RapportsTab extends ConsumerStatefulWidget {
+  const _RapportsTab();
+
+  @override
+  ConsumerState<_RapportsTab> createState() => _RapportsTabState();
+}
+
+class _RapportsTabState extends ConsumerState<_RapportsTab> {
   StatutRapport? _filtre; // null = tous
 
   @override
@@ -27,19 +104,12 @@ class _CoordonnateurRapportsPageState extends ConsumerState<CoordonnateurRapport
     final rapportsAsync = ref.watch(rapportsListProvider);
     final avsAsync = ref.watch(avsListProvider);
     final patientsAsync = ref.watch(patientsListProvider);
-    final enAttente = ref.watch(rapportsEnAttenteProvider);
 
     final avsListe = avsAsync.whenOrNull(data: (v) => v) ?? const <Avs>[];
     final patients = patientsAsync.whenOrNull(data: (v) => v) ?? const <Patient>[];
 
     return Column(
       children: [
-        AppDashboardHeader.page(
-          title: 'Rapports',
-          subtitle: '$enAttente rapport(s) en attente de validation',
-          leadingIcon: Icons.fact_check_outlined,
-        ),
-        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
           child: SingleChildScrollView(
@@ -69,15 +139,21 @@ class _CoordonnateurRapportsPageState extends ConsumerState<CoordonnateurRapport
               if (filtres.isEmpty) {
                 return Center(child: Text('Aucun rapport', style: Theme.of(context).textTheme.bodyMedium));
               }
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-                itemCount: filtres.length,
-                itemBuilder: (context, index) {
-                  final rapport = filtres[index];
-                  final avs = _trouverAvs(avsListe, rapport.avsId);
-                  final patient = _trouverPatient(patients, rapport.patientId);
-                  return _RapportCard(rapport: rapport, avs: avs, patient: patient);
-                },
+              return RefreshIndicator(
+                onRefresh: () async => ref.invalidate(rapportsListProvider),
+                child: ScrollRefreshListener(
+                  onAtteintLeBas: () => ref.invalidate(rapportsListProvider),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+                    itemCount: filtres.length,
+                    itemBuilder: (context, index) {
+                      final rapport = filtres[index];
+                      final avs = _trouverAvs(avsListe, rapport.avsId);
+                      final patient = _trouverPatient(patients, rapport.patientId);
+                      return _RapportCard(rapport: rapport, avs: avs, patient: patient);
+                    },
+                  ),
+                ),
               );
             },
           ),
@@ -125,7 +201,10 @@ class _FiltreChip extends StatelessWidget {
   }
 }
 
-class _RapportCard extends ConsumerStatefulWidget {
+/// Carte résumé d'un rapport dans la liste — le tap ouvre désormais une
+/// vraie page de détail plein écran (`CoordonnateurRapportDetailPage`),
+/// cohérente avec les fiches patient/AVS, au lieu d'un bottom sheet.
+class _RapportCard extends StatelessWidget {
   final RapportAvs rapport;
   final Avs? avs;
   final Patient? patient;
@@ -133,182 +212,13 @@ class _RapportCard extends ConsumerStatefulWidget {
   const _RapportCard({required this.rapport, required this.avs, required this.patient});
 
   @override
-  ConsumerState<_RapportCard> createState() => _RapportCardState();
-}
-
-class _RapportCardState extends ConsumerState<_RapportCard> {
-  bool _enCours = false;
-
-  Future<void> _valider() async {
-    setState(() => _enCours = true);
-    try {
-      await ref.read(coordonnateurActionsProvider).validerRapport(widget.rapport.id);
-      if (!mounted) return;
-      context.showInfo('Rapport validé.');
-    } catch (e) {
-      if (!mounted) return;
-      context.showError('$e');
-      rethrow;
-    } finally {
-      if (mounted) setState(() => _enCours = false);
-    }
-  }
-
-  Future<void> _rejeter() async {
-    setState(() => _enCours = true);
-    try {
-      await ref.read(coordonnateurActionsProvider).rejeterRapport(widget.rapport.id);
-      if (!mounted) return;
-      context.showInfo('Rapport rejeté.');
-    } catch (e) {
-      if (!mounted) return;
-      context.showError('$e');
-      rethrow;
-    } finally {
-      if (mounted) setState(() => _enCours = false);
-    }
-  }
-
-  /// Ouvre le rapport complet en bottom sheet : le coordonnateur voit
-  /// d'abord le contenu intégral avant de pouvoir valider ou rejeter,
-  /// plutôt que d'avoir les boutons directement sur la carte de liste.
-  void _ouvrirDetail() {
-    final rapport = widget.rapport;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.62,
-          minChildSize: 0.4,
-          maxChildSize: 0.92,
-          expand: false,
-          builder: (context, scrollController) {
-            return StatefulBuilder(
-              builder: (context, setSheetState) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-                  ),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(4))),
-                      Expanded(
-                        child: ListView(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
-                          children: [
-                            Row(
-                              children: [
-                                InitialsAvatar(nomComplet: widget.avs?.nomComplet ?? '?', couleur: AppColors.roleAvs),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(widget.avs?.nomComplet ?? 'AVS inconnu', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16)),
-                                      Text('Patient : ${widget.patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
-                                    ],
-                                  ),
-                                ),
-                                StatusChip(label: rapport.statut.libelle, couleur: rapport.statut.couleur),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            Row(
-                              children: [
-                                const Icon(Icons.event_outlined, size: 16, color: AppColors.textSecondary),
-                                const SizedBox(width: 6),
-                                Text(_formaterDate(rapport.date), style: Theme.of(context).textTheme.bodySmall),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Divider(),
-                            const SizedBox(height: AppSpacing.md),
-                            Text('Compte-rendu de la visite', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(rapport.resume, style: Theme.of(context).textTheme.bodyLarge),
-                            if (rapport.statut == StatutRapport.rejete && rapport.motifRejet != null && rapport.motifRejet!.isNotEmpty) ...[
-                              const SizedBox(height: AppSpacing.md),
-                              Container(
-                                padding: const EdgeInsets.all(AppSpacing.sm),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                ),
-                                child: Text('Motif du rejet : ${rapport.motifRejet}', style: const TextStyle(color: AppColors.error)),
-                              ),
-                            ],
-                            const SizedBox(height: AppSpacing.xl),
-                          ],
-                        ),
-                      ),
-                      if (rapport.statut == StatutRapport.enAttente)
-                        SafeArea(
-                          top: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _enCours ? null : () async {
-                                      try {
-                                        await _rejeter();
-                                        if (context.mounted) Navigator.of(context).maybePop();
-                                      } catch (_) {
-                                        setSheetState(() {});
-                                      }
-                                    },
-                                    icon: const Icon(Icons.close, color: AppColors.error),
-                                    label: const Text('Rejeter', style: TextStyle(color: AppColors.error)),
-                                    style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: FilledButton.icon(
-                                    onPressed: _enCours ? null : () async {
-                                      try {
-                                        await _valider();
-                                        if (context.mounted) Navigator.of(context).maybePop();
-                                      } catch (_) {
-                                        setSheetState(() {});
-                                      }
-                                    },
-                                    icon: _enCours
-                                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                        : const Icon(Icons.check),
-                                    label: const Text('Valider'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final rapport = widget.rapport;
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: _ouvrirDetail,
+        onTap: () => context.push(AppRoutes.coordonnateurRapportDetail(rapport.id)),
         child: Container(
           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -321,14 +231,14 @@ class _RapportCardState extends ConsumerState<_RapportCard> {
             children: [
               Row(
                 children: [
-                  InitialsAvatar(nomComplet: widget.avs?.nomComplet ?? '?', couleur: AppColors.roleAvs),
+                  InitialsAvatar(nomComplet: avs?.nomComplet ?? '?', couleur: AppColors.roleAvs, photoUrl: avs?.photoUrl),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.avs?.nomComplet ?? 'AVS inconnu', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text('Patient : ${widget.patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
+                        Text(avs?.nomComplet ?? 'AVS inconnu', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text('Patient : ${patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
                   ),
@@ -365,6 +275,140 @@ class _RapportCardState extends ConsumerState<_RapportCard> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Sous-onglet Check-in
+// ---------------------------------------------------------------------------
+
+/// Vue d'ensemble des check-in/check-out du jour pour toute l'équipe AVS
+/// (`GET /api/presences/aujourdhui/vue-ensemble`). Le tap sur un agent ouvre
+/// son historique complet de présence (`CoordonnateurCheckinDetailPage`).
+class _CheckinsTab extends ConsumerWidget {
+  const _CheckinsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final presencesAsync = ref.watch(presencesAujourdhuiProvider);
+
+    return presencesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, st) => _ErreurChargement(onReessayer: () => ref.invalidate(presencesAujourdhuiProvider)),
+      data: (presences) {
+        if (presences.isEmpty) {
+          return Center(
+            child: Text('Aucun check-in enregistré aujourd\'hui.', style: Theme.of(context).textTheme.bodyMedium),
+          );
+        }
+        final present = presences.where((p) => p.statut == StatutPresenceCoordonnateur.present).length;
+        final retard = presences.where((p) => p.statut == StatutPresenceCoordonnateur.retard).length;
+        final absent = presences.where((p) => p.statut == StatutPresenceCoordonnateur.absent).length;
+
+        return RefreshIndicator(
+          onRefresh: () async => ref.invalidate(presencesAujourdhuiProvider),
+          child: ScrollRefreshListener(
+            onAtteintLeBas: () => ref.invalidate(presencesAujourdhuiProvider),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _CompteurStatut(label: 'Présents', valeur: present, couleur: AppColors.success)),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: _CompteurStatut(label: 'Retards', valeur: retard, couleur: AppColors.warning)),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: _CompteurStatut(label: 'Absents', valeur: absent, couleur: AppColors.error)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                for (final presence in presences) _CheckinLigne(presence: presence),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CompteurStatut extends StatelessWidget {
+  final String label;
+  final int valeur;
+  final Color couleur;
+
+  const _CompteurStatut({required this.label, required this.valeur, required this.couleur});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: couleur.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        children: [
+          Text('$valeur', style: TextStyle(color: couleur, fontWeight: FontWeight.w700, fontSize: 20)),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckinLigne extends StatelessWidget {
+  final PresenceAvs presence;
+
+  const _CheckinLigne({required this.presence});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: () => context.push(AppRoutes.coordonnateurCheckinDetail(presence.avsId)),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              InitialsAvatar(nomComplet: presence.avsNom ?? '?', couleur: presence.statut.couleur),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(presence.avsNom ?? 'AVS', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      presence.heureCheckIn != null
+                          ? 'Entrée à ${_formaterHeure(presence.heureCheckIn!)}'
+                          : 'Pas encore de check-in',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              StatusChip(label: presence.statut.libelle, couleur: presence.statut.couleur),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.textDisabled),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formaterHeure(DateTime date) {
+    final h = date.hour.toString().padLeft(2, '0');
+    final m = date.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+}
+
 class _ErreurChargement extends StatelessWidget {
   final VoidCallback onReessayer;
 
@@ -380,7 +424,7 @@ class _ErreurChargement extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, color: AppColors.error, size: 40),
             const SizedBox(height: AppSpacing.sm),
-            const Text('Impossible de charger les rapports.', textAlign: TextAlign.center),
+            const Text('Impossible de charger les données.', textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.sm),
             FilledButton(onPressed: onReessayer, child: const Text('Réessayer')),
           ],

@@ -5,34 +5,97 @@ import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
 import '../../data/datasources/avs_remote_datasource.dart';
 import '../../domain/entities/avs_entities.dart';
 
+// ---------------------------------------------------------------------------
+// Providers branchés sur le vrai backend `prm-spad-backend` (voir
+// `data/datasources/avs_remote_datasource.dart`). Même pattern que le
+// feature Coordonnateur : chaque liste est un [FutureProvider], les
+// mutations passent par [AvsActions] puis invalident les providers de liste
+// concernés pour rafraîchir l'UI.
+// ---------------------------------------------------------------------------
+
 final avsRemoteDataSourceProvider = Provider<AvsRemoteDataSource>((ref) {
   return AvsRemoteDataSource(ref.watch(apiClientProvider));
 });
 
-/// Id du personnel AVS connecté. Conservé pour compatibilité des signatures,
-/// mais sans effet sur les appels réels au backend : celui-ci identifie
-/// toujours l'AVS via le JWT envoyé dans l'en-tête `Authorization`, jamais
-/// via ce paramètre.
-String _monIdAvs(Ref ref) => ref.watch(authControllerProvider).value?.id ?? 'avs-01';
+/// Id de l'AVS connecté — nécessaire pour les routes qui ne s'auto-filtrent
+/// pas côté serveur (`/assignations`, messagerie).
+String _monId(Ref ref) => ref.watch(authControllerProvider).value?.id ?? '';
 
-/// Planning des visites (jour/semaine) de l'AVS connecté.
-final monPlanningProvider = FutureProvider.autoDispose<List<VisitePlanifiee>>((ref) {
-  return ref.watch(avsRemoteDataSourceProvider).obtenirMonPlanning(avsId: _monIdAvs(ref));
+/// Patient(s) actuellement assigné(s) à l'AVS connecté (onglet "Mon
+/// patient"). La grande majorité des AVS n'ont qu'un seul patient actif à la
+/// fois, mais l'UI gère aussi le cas de plusieurs patients.
+final mesPatientsProvider = FutureProvider.autoDispose<List<Patient>>((ref) {
+  return ref.watch(avsRemoteDataSourceProvider).mesPatients();
 });
 
-/// Historique de mes rapports journaliers.
+/// Affectations actives de l'AVS connecté (fréquence de visite, date de
+/// début) — complète `mesPatientsProvider` pour l'affichage détaillé.
+final mesAffectationsProvider = FutureProvider.autoDispose<List<Affectation>>((ref) {
+  final id = _monId(ref);
+  if (id.isEmpty) return Future.value(const []);
+  return ref.watch(avsRemoteDataSourceProvider).mesAffectationsActives(id);
+});
+
+/// Historique de mes rapports journaliers (tous patients confondus).
 final mesRapportsProvider = FutureProvider.autoDispose<List<RapportAvs>>((ref) {
-  return ref.watch(avsRemoteDataSourceProvider).obtenirMesRapports(avsId: _monIdAvs(ref));
+  return ref.watch(avsRemoteDataSourceProvider).mesRapports();
+});
+
+/// Rapports concernant un patient précis (onglet "Mon patient").
+final mesRapportsDuPatientProvider = FutureProvider.autoDispose.family<List<RapportAvs>, String>((ref, patientId) {
+  return ref.watch(avsRemoteDataSourceProvider).mesRapports(patientId: patientId);
 });
 
 /// Présence (check-in/out) du jour.
 final presenceDuJourProvider = FutureProvider.autoDispose<Presence?>((ref) {
-  return ref.watch(avsRemoteDataSourceProvider).presenceDuJour(avsId: _monIdAvs(ref));
+  return ref.watch(avsRemoteDataSourceProvider).presenceDuJour();
 });
 
-/// Statistiques personnelles de ponctualité, affichées sur l'accueil/planning.
-final mesStatistiquesProvider = FutureProvider.autoDispose<StatistiquesPonctualiteAvs>((ref) {
-  return ref.watch(avsRemoteDataSourceProvider).mesStatistiques(avsId: _monIdAvs(ref));
+/// Historique des présences (récapitulatif de l'onglet Check-in + calcul des
+/// statistiques personnelles).
+final mesPresencesProvider = FutureProvider.autoDispose<List<Presence>>((ref) {
+  return ref.watch(avsRemoteDataSourceProvider).mesPresences();
+});
+
+/// Statistiques personnelles de ponctualité, calculées côté app à partir de
+/// `mesRapportsProvider` (champ `statutRemise`) et `mesPresencesProvider`
+/// (champ `statut`) — voir le commentaire sur `StatistiquesPonctualiteAvs`.
+final mesStatistiquesProvider = FutureProvider.autoDispose<StatistiquesPonctualiteAvs>((ref) async {
+  final rapports = await ref.watch(mesRapportsProvider.future);
+  final presences = await ref.watch(mesPresencesProvider.future);
+
+  final rapportsATemps = rapports.where((r) => r.statutRemise == StatutRemiseRapport.aTemps).length;
+  final rapportsEnRetard = rapports.where((r) => r.statutRemise == StatutRemiseRapport.enRetard).length;
+  final checkinsATemps = presences.where((p) => p.statut == StatutPresence.aLheure).length;
+  final checkinsEnRetard = presences.where((p) => p.statut == StatutPresence.enRetard).length;
+  final absences = presences.where((p) => p.statut == StatutPresence.absent).length;
+
+  return StatistiquesPonctualiteAvs(
+    rapportsATemps: rapportsATemps,
+    rapportsEnRetard: rapportsEnRetard,
+    checkinsATemps: checkinsATemps,
+    checkinsEnRetard: checkinsEnRetard,
+    absences: absences,
+  );
+});
+
+/// Conversations de l'AVS connecté (onglet Messages).
+final avsConversationsProvider = FutureProvider.autoDispose<List<Conversation>>((ref) {
+  final id = _monId(ref);
+  return ref.watch(avsRemoteDataSourceProvider).listerConversations(id);
+});
+
+/// Messages d'une conversation précise (fil de discussion ouvert).
+final avsMessagesProvider = FutureProvider.autoDispose.family<List<MessageConversation>, String>((ref, conversationId) {
+  final id = _monId(ref);
+  return ref.watch(avsRemoteDataSourceProvider).listerMessages(conversationId, id);
+});
+
+/// Annuaire par rôle (coordonnateurs / médecins / administrateurs), pour la
+/// messagerie AVS. Repli silencieux sur liste vide tant que le backend ne
+/// permet pas à un AVS d'appeler cette route — voir `BACKEND-TODO.md`.
+final personnelAnnuaireProvider = FutureProvider.autoDispose.family<List<PersonnelAnnuaire>, String>((ref, role) {
+  return ref.watch(avsRemoteDataSourceProvider).listerPersonnelParRole(role);
 });
 
 class AvsActions {
@@ -41,24 +104,45 @@ class AvsActions {
   AvsActions(this._ref);
 
   AvsRemoteDataSource get _ds => _ref.read(avsRemoteDataSourceProvider);
-  String get _avsId => _ref.read(authControllerProvider).value?.id ?? 'avs-01';
+  String get _monIdActuel => _ref.read(authControllerProvider).value?.id ?? '';
 
   Future<void> creerRapport(Map<String, dynamic> corps) async {
-    await _ds.creerRapport(corps, avsId: _avsId);
+    await _ds.creerRapport(corps);
     _ref.invalidate(mesRapportsProvider);
+    if (corps['patientId'] != null) {
+      _ref.invalidate(mesRapportsDuPatientProvider(corps['patientId'].toString()));
+    }
     _ref.invalidate(mesStatistiquesProvider);
   }
 
   Future<void> checkIn({required double latitude, required double longitude}) async {
-    await _ds.checkIn(latitude: latitude, longitude: longitude, avsId: _avsId);
+    await _ds.checkIn(latitude: latitude, longitude: longitude);
     _ref.invalidate(presenceDuJourProvider);
+    _ref.invalidate(mesPresencesProvider);
     _ref.invalidate(mesStatistiquesProvider);
   }
 
   Future<void> checkOut() async {
-    await _ds.checkOut(avsId: _avsId);
+    await _ds.checkOut();
     _ref.invalidate(presenceDuJourProvider);
+    _ref.invalidate(mesPresencesProvider);
     _ref.invalidate(mesStatistiquesProvider);
+  }
+
+  /// Ouvre (ou crée) le fil de discussion privé avec [participantId].
+  Future<Conversation> ouvrirConversationAvec(String participantId, {String? patientContexteId}) {
+    return _ds.creerOuObtenirConversation(participantId, _monIdActuel, patientContexteId: patientContexteId);
+  }
+
+  Future<void> envoyerMessage(String conversationId, String contenu) async {
+    await _ds.envoyerMessage(conversationId, contenu, _monIdActuel);
+    _ref.invalidate(avsMessagesProvider(conversationId));
+    _ref.invalidate(avsConversationsProvider);
+  }
+
+  Future<void> marquerConversationLue(String conversationId) async {
+    await _ds.marquerConversationLue(conversationId);
+    _ref.invalidate(avsConversationsProvider);
   }
 }
 

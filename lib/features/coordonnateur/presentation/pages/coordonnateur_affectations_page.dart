@@ -14,7 +14,10 @@ import '../widgets/coordonnateur_widgets.dart';
 /// partir d'un calendrier (au lieu d'une simple saisie manuelle de date), et
 /// consulter les affectations déjà en place.
 class CoordonnateurAffectationsPage extends ConsumerStatefulWidget {
-  const CoordonnateurAffectationsPage({super.key});
+  final String? patientIdPreselectionne;
+  final String? avsIdPreselectionne;
+
+  const CoordonnateurAffectationsPage({super.key, this.patientIdPreselectionne, this.avsIdPreselectionne});
 
   @override
   ConsumerState<CoordonnateurAffectationsPage> createState() => _CoordonnateurAffectationsPageState();
@@ -23,6 +26,13 @@ class CoordonnateurAffectationsPage extends ConsumerStatefulWidget {
 class _CoordonnateurAffectationsPageState extends ConsumerState<CoordonnateurAffectationsPage> {
   String? _patientId;
   String? _avsId;
+
+  @override
+  void initState() {
+    super.initState();
+    _patientId = widget.patientIdPreselectionne;
+    _avsId = widget.avsIdPreselectionne;
+  }
 
   // Jours de la semaine sélectionnés pour la fréquence des visites de
   // l'AVS chez ce patient (1 = lundi ... 7 = dimanche). Remplace l'ancien

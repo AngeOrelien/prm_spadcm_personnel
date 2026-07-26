@@ -17,19 +17,25 @@ abstract class AppRoutes {
   static const login = '/login';
   static const otp = '/otp';
 
-  // --- AVS : Planning / Rapports / Check-in / Messages (4 onglets) ---
+  // --- AVS : Accueil / Mon patient / Check-in / Messages (4 onglets) ---
+  //
+  // "Planning" a été remplacé par "Accueil" (l'ancien onglet pointait vers
+  // `/assignations/mon-planning`, une route qui n'existe pas côté backend —
+  // voir `BACKEND-TODO.md`) et "Rapports" par "Mon patient" (l'historique
+  // de rapports reste accessible en page poussée, voir `avsRapports`
+  // ci-dessous, désormais un simple push et non plus un onglet).
   static const avsDashboard = '/avs';
-  static const avsPlanning = '/avs/planning';
-  static const avsRapports = '/avs/rapports';
+  static const avsAccueil = '/avs/accueil';
+  static const avsPatient = '/avs/patient';
   static const avsCheckin = '/avs/checkin';
   static const avsMessages = '/avs/messages';
   static const avsProfil = '/avs/profil';
   static const avsNouveauRapport = '/avs/rapports/nouveau';
-  static const avsRapportDetailPattern = '/avs/rapports/:id';
-  static String avsRapportDetail(String id) => '/avs/rapports/$id';
-  static const avsMessagerieAdministrationPattern = '/avs/messages/administration';
-  static const avsMessageriePatientPattern = '/avs/messages/patient/:id';
-  static String avsMessageriePatient(String id) => '/avs/messages/patient/$id';
+  static const avsRapports = '/avs/rapports';
+  static const avsPatientDetailPattern = '/avs/patient/:id';
+  static String avsPatientDetail(String id) => '/avs/patient/$id';
+  static const avsMessagerieConversationPattern = '/avs/messages/:id';
+  static String avsMessagerieConversation(String id) => '/avs/messages/$id';
 
   // --- Médecin (rôle en étude) : Patients / Prescriptions / Messagerie (3 onglets) ---
   static const medecinDashboard = '/medecin';
@@ -68,6 +74,14 @@ abstract class AppRoutes {
   static String coordonnateurPatientDetail(String id) => '/coordonnateur/patients/$id';
   static String coordonnateurAvsDetail(String id) => '/coordonnateur/equipe/$id';
   static String coordonnateurMessagerieConversation(String id) => '/coordonnateur/messagerie/$id';
+
+  // Détail plein écran d'un rapport AVS (au lieu du bottom sheet précédent)
+  // et d'une présence/check-in — voir `coordonnateur_rapports_page.dart` /
+  // `coordonnateur_checkins_page.dart`.
+  static const coordonnateurRapportDetailPattern = '/coordonnateur/rapports/:id';
+  static String coordonnateurRapportDetail(String id) => '/coordonnateur/rapports/$id';
+  static const coordonnateurCheckinDetailPattern = '/coordonnateur/checkins/:id';
+  static String coordonnateurCheckinDetail(String id) => '/coordonnateur/checkins/$id';
 
   // --- Administrateur : Tableau de bord / Utilisateurs / Paiements / Statistiques / Messagerie (5 onglets) ---
   static const administrateurDashboard = '/administrateur';

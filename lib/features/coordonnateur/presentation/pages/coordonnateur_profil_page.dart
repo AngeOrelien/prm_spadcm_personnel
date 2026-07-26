@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../auth/domain/entities/personnel.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../widgets/coordonnateur_widgets.dart';
@@ -27,6 +28,20 @@ class _CoordonnateurProfilPageState extends ConsumerState<CoordonnateurProfilPag
   Widget build(BuildContext context) {
     final personnel = ref.watch(authControllerProvider).value;
 
+    // Scaffold explicite : cette page est poussée en plein écran depuis le
+    // menu "⋮" du header, hors du Scaffold du dashboard shell — sans lui,
+    // le contenu s'affichait sur fond noir (aucun fond derrière le Column).
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        bottom: false,
+        top: false,
+        child: _buildBody(context, personnel),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, Personnel? personnel) {
     return Column(
       children: [
         AppDashboardHeader.page(

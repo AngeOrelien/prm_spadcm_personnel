@@ -6,10 +6,10 @@ import '../features/administrateur/presentation/pages/administrateur_paiements_p
 import '../features/administrateur/presentation/pages/administrateur_statistiques_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_utilisateurs_page.dart';
 import '../features/auth/domain/entities/personnel.dart';
+import '../features/avs/presentation/pages/avs_accueil_page.dart';
 import '../features/avs/presentation/pages/avs_checkin_page.dart';
 import '../features/avs/presentation/pages/avs_messages_page.dart';
-import '../features/avs/presentation/pages/avs_planning_page.dart';
-import '../features/avs/presentation/pages/avs_rapports_page.dart';
+import '../features/avs/presentation/pages/avs_patient_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_accueil_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_equipe_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_messagerie_page.dart';
@@ -86,25 +86,29 @@ class RoleDashboardConfig {
 /// Point unique à modifier pour ajouter/renommer/réordonner les onglets
 /// d'un rôle donné, sans toucher au router lui-même.
 final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
-  // --- AVS : Planning / Rapports / Check-in / Messages (README §7.2) ---
+  // --- AVS : Accueil / Mon patient / Check-in / Messages ---
+  //
+  // "Planning" et "Rapports" ont été remplacés par "Accueil" et "Mon
+  // patient" (voir `AppRoutes` pour le détail des routes backend
+  // concernées, dont certaines n'existaient pas encore côté serveur).
   RolePersonnel.avs: RoleDashboardConfig(
     role: RolePersonnel.avs,
     libelleRole: 'Agent AVS',
     basePath: AppRoutes.avsDashboard,
     tabs: [
       DashboardTab(
-        label: 'Planning',
-        icon: Icons.calendar_month_outlined,
-        selectedIcon: Icons.calendar_month,
-        path: AppRoutes.avsPlanning,
-        pageBuilder: _avsPlanning,
+        label: 'Accueil',
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home,
+        path: AppRoutes.avsAccueil,
+        pageBuilder: _avsAccueil,
       ),
       DashboardTab(
-        label: 'Rapports',
-        icon: Icons.fact_check_outlined,
-        selectedIcon: Icons.fact_check,
-        path: AppRoutes.avsRapports,
-        pageBuilder: _avsRapports,
+        label: 'Mon patient',
+        icon: Icons.favorite_border,
+        selectedIcon: Icons.favorite,
+        path: AppRoutes.avsPatient,
+        pageBuilder: _avsPatient,
       ),
       DashboardTab(
         label: 'Check-in',
@@ -181,7 +185,7 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
         pageBuilder: (context) => const CoordonnateurEquipePage(),
       ),
       DashboardTab(
-        label: 'Rapports',
+        label: 'Suivi',
         icon: Icons.fact_check_outlined,
         selectedIcon: Icons.fact_check,
         path: AppRoutes.coordonnateurRapports,
@@ -261,8 +265,8 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
 
 // Fonctions statiques (plutôt que des closures inline) pour que les builders
 // des `const RoleDashboardConfig` restent des tear-offs valides en `const`.
-Widget _avsPlanning(BuildContext context) => const AvsPlanningPage();
-Widget _avsRapports(BuildContext context) => const AvsRapportsPage();
+Widget _avsAccueil(BuildContext context) => const AvsAccueilPage();
+Widget _avsPatient(BuildContext context) => const AvsPatientPage();
 Widget _avsCheckin(BuildContext context) => const AvsCheckinPage();
 Widget _avsMessages(BuildContext context) => const AvsMessagesPage();
 

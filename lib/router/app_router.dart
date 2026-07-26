@@ -6,14 +6,20 @@ import '../features/administrateur/presentation/pages/administrateur_nouvel_util
 import '../features/auth/presentation/pages/login_email_page.dart';
 import '../features/auth/presentation/pages/otp_verification_page.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
+import '../features/avs/presentation/pages/avs_conversation_page.dart';
+import '../features/avs/presentation/pages/avs_patient_detail_page.dart';
 import '../features/avs/presentation/pages/avs_profil_page.dart';
 import '../features/avs/presentation/pages/avs_rapport_form_page.dart';
+import '../features/avs/presentation/pages/avs_rapports_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_affectations_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_form_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_checkin_detail_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_conversation_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_patient_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_patient_form_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_profil_page.dart';
+import '../features/coordonnateur/presentation/pages/coordonnateur_rapport_detail_page.dart';
 import '../features/dashboard/presentation/pages/dashboard_tab_placeholder.dart';
 import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
 import '../features/medecin/presentation/pages/medecin_patient_detail_page.dart';
@@ -37,6 +43,18 @@ String? _sousTitreInterlocuteur(GoRouterState state, [String? parDefaut]) {
   final extra = state.extra;
   if (extra is Map) return extra['sousTitre']?.toString() ?? parDefaut;
   return parDefaut;
+}
+
+/// Id réel de conversation (`/api/conversations/:id`), passé en `extra` par
+/// `CoordonnateurActions.ouvrirConversationAvec(...)` avant la navigation —
+/// voir `coordonnateur_messagerie_page.dart`, `coordonnateur_avs_detail_page.dart`
+/// et `coordonnateur_patient_detail_page.dart`.
+String _conversationId(GoRouterState state) {
+  final extra = state.extra;
+  if (extra is Map && extra['conversationId'] != null) return extra['conversationId'].toString();
+  // Repli sur le paramètre d'URL si jamais appelé sans `extra` (ne devrait
+  // pas arriver côté coordonnateur, mais évite un crash).
+  return state.pathParameters['id'] ?? '';
 }
 
 /// Pont entre le AsyncNotifierProvider de Riverpod et `refreshListenable` de
@@ -113,34 +131,45 @@ final routerProvider = Provider<GoRouter>((ref) {
       for (final config in roleDashboards.values) _buildDashboardRoute(config),
 
       // --- AVS : pages plein écran atteintes via context.push depuis un
-      // onglet (bouton "+" du header), donc sans bottom navigation. ---
+      // onglet, donc sans bottom navigation. ---
       GoRoute(
         path: AppRoutes.avsNouveauRapport,
-        builder: (context, state) => const AvsRapportFormPage(),
-      ),
-      // --- AVS : fils de messagerie (Administration / patient), ouverts en
-      // plein écran via context.push depuis l'onglet "Messages" — voir
-      // `AvsMessagesPage`. Étaient auparavant ouverts via Navigator.push
-      // brut depuis l'onglet, ce qui laissait la bottom navigation du
-      // dashboard visible par-dessus (le Navigator imbriqué de l'onglet
-      // n'a pas la main sur le Scaffold parent qui la porte). Enregistrées
-      // ici, hors du StatefulShellRoute, elles montent sur le Navigator
-      // racine et masquent correctement la bottom navigation. ---
-      GoRoute(
-        path: AppRoutes.avsMessagerieAdministrationPattern,
         builder: (context, state) {
-          return MessagerieStubPage(
-            interlocuteurNom: _nomInterlocuteur(state, 'Administration'),
-            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Support logistique'),
-          );
+          // `extra` = patientId présélectionné, passé depuis l'onglet "Mon
+          // patient" (bouton "Nouveau rapport pour ce patient") — voir
+          // `avs_patient_page.dart`. Peut être `null` (accès depuis
+          // l'historique des rapports, sans patient présélectionné).
+          final extra = state.extra;
+          return AvsRapportFormPage(patientIdPreselectionne: extra is String ? extra : null);
         },
       ),
+      // Historique complet des rapports : n'est plus un onglet (remplacé
+      // par "Mon patient", qui montre l'historique du patient assigné),
+      // reste accessible en page poussée depuis l'accueil et "Mon patient".
       GoRoute(
-        path: AppRoutes.avsMessageriePatientPattern,
+        path: AppRoutes.avsRapports,
+        builder: (context, state) => const AvsRapportsPage(),
+      ),
+      // Fiche détail d'un patient précis — utilisée seulement quand l'AVS a
+      // plusieurs patients actifs (cas le plus fréquent : patient unique,
+      // affiché directement dans l'onglet "Mon patient").
+      GoRoute(
+        path: AppRoutes.avsPatientDetailPattern,
+        builder: (context, state) => AvsPatientDetailPage(patientId: state.pathParameters['id']!),
+      ),
+      // --- AVS : fil de messagerie réel (patient, coordonnateurs, médecins,
+      // administrateurs), branché sur `/api/conversations` — voir
+      // `AvsMessagesPage`, qui appelle `ouvrirConversationAvec(...)` avant
+      // de pousser cette route avec le vrai id de conversation en `extra`.
+      // Remplace les anciens fils `MessagerieStubPage` (données locales
+      // factices, jamais connectés au backend). ---
+      GoRoute(
+        path: AppRoutes.avsMessagerieConversationPattern,
         builder: (context, state) {
-          return MessagerieStubPage(
-            interlocuteurNom: _nomInterlocuteur(state, 'Patient'),
-            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Patient / famille'),
+          return AvsConversationPage(
+            conversationId: _conversationId(state),
+            interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state),
           );
         },
       ),
@@ -150,7 +179,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       // rapides ou depuis un bouton "+" au sein d'un onglet. ---
       GoRoute(
         path: AppRoutes.coordonnateurAffectations,
-        builder: (context, state) => const CoordonnateurAffectationsPage(),
+        builder: (context, state) {
+          final extra = state.extra;
+          String? patientId;
+          String? avsId;
+          if (extra is Map) {
+            patientId = extra['patientId']?.toString();
+            avsId = extra['avsId']?.toString();
+          }
+          return CoordonnateurAffectationsPage(patientIdPreselectionne: patientId, avsIdPreselectionne: avsId);
+        },
       ),
       GoRoute(
         path: AppRoutes.coordonnateurNouveauPatient,
@@ -168,17 +206,33 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.coordonnateurAvsDetailPattern,
         builder: (context, state) => CoordonnateurAvsDetailPage(avsId: state.pathParameters['id']!),
       ),
-      // --- Coordonnateur : fil de messagerie (AVS de l'équipe ou
-      // patient/famille), même correctif qu'AVS ci-dessus — voir
-      // `CoordonnateurMessageriePage`. ---
+      // --- Coordonnateur : fil de messagerie réel (AVS de l'équipe ou
+      // patient/famille), branché sur `/api/conversations` — voir
+      // `CoordonnateurMessageriePage`, `CoordonnateurAvsDetailPage` et
+      // `CoordonnateurPatientDetailPage`, qui appellent
+      // `ouvrirConversationAvec(...)` avant de pousser cette route avec le
+      // vrai id de conversation en `extra`. ---
       GoRoute(
         path: AppRoutes.coordonnateurMessagerieConversationPattern,
         builder: (context, state) {
-          return MessagerieStubPage(
+          return CoordonnateurConversationPage(
+            conversationId: _conversationId(state),
             interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
             interlocuteurSousTitre: _sousTitreInterlocuteur(state),
           );
         },
+      ),
+      // --- Coordonnateur : détail plein écran d'un rapport AVS (au lieu du
+      // bottom sheet précédent) — voir `CoordonnateurRapportsPage`. ---
+      GoRoute(
+        path: AppRoutes.coordonnateurRapportDetailPattern,
+        builder: (context, state) => CoordonnateurRapportDetailPage(rapportId: state.pathParameters['id']!),
+      ),
+      // --- Coordonnateur : détail plein écran d'une présence/check-in d'un
+      // AVS — voir `CoordonnateurCheckinsPage`. ---
+      GoRoute(
+        path: AppRoutes.coordonnateurCheckinDetailPattern,
+        builder: (context, state) => CoordonnateurCheckinDetailPage(avsId: state.pathParameters['id']!),
       ),
 
       // --- Médecin : fiche patient (dossier médical) ---

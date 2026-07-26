@@ -1,42 +1,25 @@
 /// Entités du feature AVS (Auxiliaire de Vie Sociale).
 ///
-/// Réutilise volontairement `Patient`, `Avs`, `RapportAvs` et `StatutRapport`
-/// du feature Coordonnateur (déjà alignés sur le backend) plutôt que de les
-/// dupliquer : voir `coordonnateur/domain/entities/coordonnateur_entities.dart`.
-
-/// Une visite planifiée chez un patient (dérivée d'une `Affectation` côté
-/// backend, resituée sur un jour précis pour l'affichage planning).
-class VisitePlanifiee {
-  final String id;
-  final String patientId;
-  final String patientNom;
-  final String adressePatient;
-  final DateTime date;
-  final String creneauLibelle;
-  final bool terminee;
-
-  const VisitePlanifiee({
-    required this.id,
-    required this.patientId,
-    required this.patientNom,
-    required this.adressePatient,
-    required this.date,
-    required this.creneauLibelle,
-    this.terminee = false,
-  });
-}
+/// Réutilise volontairement `Patient`, `Affectation`, `Avs`, `RapportAvs`,
+/// `StatutRapport`, `Conversation` et `MessageConversation` du feature
+/// Coordonnateur (déjà alignés sur le backend) plutôt que de les dupliquer :
+/// voir `coordonnateur/domain/entities/coordonnateur_entities.dart`.
 
 enum StatutPresence { enAttente, aLheure, enRetard, absent }
 
+/// ⚠️ Correctif : le backend renvoie `statut` avec les valeurs `'present'`,
+/// `'retard'` ou `'absent'` (voir `presenceController.calculerStatutCheckIn`
+/// et le modèle `Presence`), jamais `'a_l_heure'`/`'en_retard'`. L'ancien
+/// mapping ne matchait donc jamais rien et retombait systématiquement sur
+/// `enAttente`, y compris pour un check-in bien enregistré.
 StatutPresence statutPresenceFromString(String? value) {
   switch (value) {
-    case 'a_l_heure':
+    case 'present':
       return StatutPresence.aLheure;
-    case 'en_retard':
+    case 'retard':
       return StatutPresence.enRetard;
     case 'absent':
       return StatutPresence.absent;
-    case 'en_attente':
     default:
       return StatutPresence.enAttente;
   }
@@ -66,8 +49,12 @@ class Presence {
   bool get aFaitCheckOut => heureCheckOut != null;
 }
 
-/// Statistiques personnelles de ponctualité affichées à l'AVS (résumé) —
-/// alimente aussi les statistiques agrégées vues par l'administrateur.
+/// Statistiques personnelles de ponctualité affichées à l'AVS (résumé).
+///
+/// ⚠️ Pas de route backend dédiée pour ces stats côté AVS (voir
+/// `BACKEND-TODO.md`) : elles sont calculées côté app à partir de
+/// `GET /rapports` (champ `statutRemise`, auto-filtré sur l'AVS connecté) et
+/// `GET /presences` (idem) — voir `AvsActions`/`mesStatistiquesProvider`.
 class StatistiquesPonctualiteAvs {
   final int rapportsATemps;
   final int rapportsEnRetard;
@@ -85,4 +72,26 @@ class StatistiquesPonctualiteAvs {
 
   int get totalRapports => rapportsATemps + rapportsEnRetard;
   double get tauxPonctualite => totalRapports == 0 ? 1 : rapportsATemps / totalRapports;
+}
+
+/// Entrée d'annuaire (coordonnateur / médecin / administrateur), utilisée
+/// par la messagerie AVS pour démarrer une conversation avec "tous les
+/// coordonnateurs", "tous les médecins" ou "tous les admins" — voir
+/// `GET /utilisateurs/role/:role` (`ApiConstants.utilisateursParRole`).
+class PersonnelAnnuaire {
+  final String id;
+  final String nom;
+  final String prenom;
+  final String role;
+  final String? photoUrl;
+
+  const PersonnelAnnuaire({
+    required this.id,
+    required this.nom,
+    required this.prenom,
+    required this.role,
+    this.photoUrl,
+  });
+
+  String get nomComplet => '$prenom $nom';
 }

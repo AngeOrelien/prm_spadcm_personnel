@@ -160,4 +160,116 @@ class CoordonnateurRemoteDataSource {
       throw ApiClient.toAppException(e);
     }
   }
+
+  // --- Messagerie (`/api/conversations`) ---
+
+  Future<List<Conversation>> listerConversations(String currentUserId) async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.conversations);
+      final data = response.data['conversations'] as List;
+      return data
+          .map((json) => ConversationModel.fromJson(json as Map<String, dynamic>, currentUserId))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  /// Crée une conversation privée avec [participantId], ou récupère celle
+  /// qui existe déjà (le backend est idempotent pour les conversations
+  /// privées à 2 participants — voir `creerConversation`).
+  Future<Conversation> creerOuObtenirConversation(String participantId, String currentUserId, {String? patientContexteId}) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.conversations,
+        data: {
+          'participantsIds': [participantId],
+          'type': 'privee',
+          if (patientContexteId != null) 'patientContexteId': patientContexteId,
+        },
+      );
+      return ConversationModel.fromJson(response.data['conversation'] as Map<String, dynamic>, currentUserId);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  Future<List<MessageConversation>> listerMessages(String conversationId, String currentUserId, {DateTime? avant}) async {
+    try {
+      final response = await _apiClient.dio.get(
+        '${ApiConstants.conversations}/$conversationId/messages',
+        queryParameters: {if (avant != null) 'avant': avant.toIso8601String()},
+      );
+      final data = response.data['messages'] as List;
+      return data
+          .map((json) => MessageModel.fromJson(json as Map<String, dynamic>, currentUserId))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  Future<MessageConversation> envoyerMessage(String conversationId, String contenu, String currentUserId) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '${ApiConstants.conversations}/$conversationId/messages',
+        data: {'contenu': contenu},
+      );
+      return MessageModel.fromJson(response.data['message'] as Map<String, dynamic>, currentUserId);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  Future<void> marquerConversationLue(String conversationId) async {
+    try {
+      await _apiClient.dio.patch('${ApiConstants.conversations}/$conversationId/marquer-lu');
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  // --- Présences / check-in (`/api/presences`) ---
+
+  Future<List<PresenceAvs>> listerPresences({String? avsId, DateTime? date, String? statut}) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.presences,
+        queryParameters: {
+          if (avsId != null) 'avsId': avsId,
+          if (date != null) 'date': date.toIso8601String(),
+          if (statut != null) 'statut': statut,
+        },
+      );
+      final data = response.data['presences'] as List;
+      return data.map((json) => PresenceCoordonnateurModel.fromJson(json as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  /// Vue temps réel du jour : qui est présent / en retard / absent.
+  Future<List<PresenceAvs>> vueEnsembleDuJour() async {
+    try {
+      final response = await _apiClient.dio.get('${ApiConstants.presences}/aujourdhui/vue-ensemble');
+      final data = response.data['vue'] as List;
+      final aujourdhui = DateTime.now();
+      return data
+          .map((json) => PresenceCoordonnateurModel.fromVueEnsembleJson(json as Map<String, dynamic>, aujourdhui))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  // --- Statistiques (`/api/stats/operationnel`) ---
+
+  Future<Map<String, dynamic>> statistiquesOperationnelles() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.statistiquesOperationnelles);
+      return Map<String, dynamic>.from(response.data['stats'] as Map);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
 }

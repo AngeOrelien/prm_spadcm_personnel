@@ -1,39 +1,8 @@
 import '../../domain/entities/avs_entities.dart';
 
-String _idDe(dynamic valeur) {
-  if (valeur == null) return '';
-  if (valeur is Map) return (valeur['_id'] ?? '').toString();
-  return valeur.toString();
-}
-
-String? _nomCompletDepuis(dynamic valeur) {
-  if (valeur is Map) {
-    final prenom = valeur['prenom'] ?? '';
-    final nom = valeur['nom'] ?? '';
-    final complet = '$prenom $nom'.trim();
-    return complet.isEmpty ? null : complet;
-  }
-  return null;
-}
-
-class VisitePlanifieeModel {
-  static VisitePlanifiee fromJson(Map<String, dynamic> json) {
-    final patient = json['patient'];
-    return VisitePlanifiee(
-      id: (json['_id'] ?? json['id'] ?? '').toString(),
-      patientId: _idDe(json['patientId'] ?? patient),
-      patientNom: _nomCompletDepuis(patient) ?? json['patientNom'] ?? 'Patient',
-      adressePatient: (patient is Map ? patient['adresse'] : json['adresse'])?.toString() ?? '',
-      date: DateTime.tryParse('${json['date']}') ?? DateTime.now(),
-      creneauLibelle: json['creneauLibelle']?.toString() ?? json['frequence']?.toString() ?? '',
-      terminee: json['terminee'] == true,
-    );
-  }
-}
-
 class PresenceModel {
   static Presence fromJson(Map<String, dynamic> json) {
-    final geo = json['geolocalisation'];
+    final geo = json['geolocalisationCheckIn'] ?? json['geolocalisation'];
     return Presence(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       date: DateTime.tryParse('${json['date']}') ?? DateTime.now(),
@@ -42,6 +11,20 @@ class PresenceModel {
       latitude: geo is Map ? (geo['latitude'] as num?)?.toDouble() : null,
       longitude: geo is Map ? (geo['longitude'] as num?)?.toDouble() : null,
       statut: statutPresenceFromString(json['statut']?.toString()),
+    );
+  }
+}
+
+/// Mapping d'une entrée d'annuaire (`GET /utilisateurs/role/:role`), utilisée
+/// par la messagerie AVS pour lister coordonnateurs/médecins/administrateurs.
+class PersonnelAnnuaireModel {
+  static PersonnelAnnuaire fromJson(Map<String, dynamic> json) {
+    return PersonnelAnnuaire(
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      nom: json['nom'] ?? '',
+      prenom: json['prenom'] ?? '',
+      role: json['role']?.toString() ?? '',
+      photoUrl: json['photoUrl'],
     );
   }
 }

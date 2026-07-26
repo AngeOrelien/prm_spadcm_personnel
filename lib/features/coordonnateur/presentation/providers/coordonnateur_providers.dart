@@ -83,6 +83,41 @@ final patientsNonAssignesProvider = Provider.autoDispose<int>((ref) {
       );
 });
 
+/// Id de l'utilisateur connecté, utilisé pour savoir "qui est l'autre" dans
+/// une conversation et si un message vient de moi.
+final _currentUserIdProvider = Provider.autoDispose<String>((ref) {
+  return ref.watch(authControllerProvider).value?.id ?? '';
+});
+
+/// Chiffres clés du tableau de bord (`/api/stats/operationnel`) : alertes
+/// ouvertes, rendez-vous à venir, présences du jour, rapports en retard...
+/// Alimente les cartes supplémentaires de l'accueil coordonnateur.
+final statistiquesOperationnellesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).statistiquesOperationnelles();
+});
+
+/// Liste des conversations du coordonnateur (onglet Messagerie).
+final conversationsListProvider = FutureProvider.autoDispose<List<Conversation>>((ref) {
+  final currentUserId = ref.watch(_currentUserIdProvider);
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerConversations(currentUserId);
+});
+
+/// Messages d'une conversation précise (fil de discussion ouvert).
+final messagesProvider = FutureProvider.autoDispose.family<List<MessageConversation>, String>((ref, conversationId) {
+  final currentUserId = ref.watch(_currentUserIdProvider);
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerMessages(conversationId, currentUserId);
+});
+
+/// Vue d'ensemble des présences/check-in du jour (onglet Check-in).
+final presencesAujourdhuiProvider = FutureProvider.autoDispose<List<PresenceAvs>>((ref) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).vueEnsembleDuJour();
+});
+
+/// Historique des présences d'un AVS précis (fiche détail check-in).
+final presencesDeLavsProvider = FutureProvider.autoDispose.family<List<PresenceAvs>, String>((ref, avsId) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerPresences(avsId: avsId);
+});
+
 /// Actions qui modifient des données côté serveur, puis invalident les
 /// providers de liste concernés pour que l'UI se rafraîchisse automatiquement.
 class CoordonnateurActions {
@@ -102,6 +137,8 @@ class CoordonnateurActions {
     List<String> allergies = const [],
     List<String> difficultesMobilite = const [],
     String? telephone,
+    String? email,
+    String? motDePasse,
   }) async {
     await _ds.creerPatient(
       PatientModel.toCreateJson(
@@ -114,6 +151,8 @@ class CoordonnateurActions {
         allergies: allergies,
         difficultesMobilite: difficultesMobilite,
         telephone: telephone,
+        email: email,
+        motDePasse: motDePasse,
       ),
     );
     _ref.invalidate(patientsListProvider);
@@ -157,6 +196,26 @@ class CoordonnateurActions {
     await _ds.rejeterRapport(id, motif: motif);
     _ref.invalidate(rapportsListProvider);
     _ref.invalidate(rapportsEnAttenteListProvider);
+  }
+
+  /// Ouvre (ou crée) le fil de discussion privé avec [participantId] — à
+  /// appeler avant de naviguer vers la page de conversation, pour obtenir un
+  /// vrai id de conversation plutôt que d'utiliser l'id du patient/AVS.
+  Future<Conversation> ouvrirConversationAvec(String participantId, {String? patientContexteId}) {
+    final currentUserId = _ref.read(_currentUserIdProvider);
+    return _ds.creerOuObtenirConversation(participantId, currentUserId, patientContexteId: patientContexteId);
+  }
+
+  Future<void> envoyerMessage(String conversationId, String contenu) async {
+    final currentUserId = _ref.read(_currentUserIdProvider);
+    await _ds.envoyerMessage(conversationId, contenu, currentUserId);
+    _ref.invalidate(messagesProvider(conversationId));
+    _ref.invalidate(conversationsListProvider);
+  }
+
+  Future<void> marquerConversationLue(String conversationId) async {
+    await _ds.marquerConversationLue(conversationId);
+    _ref.invalidate(conversationsListProvider);
   }
 }
 

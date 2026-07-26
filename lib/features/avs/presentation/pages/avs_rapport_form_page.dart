@@ -11,13 +11,17 @@ import '../providers/avs_providers.dart';
 /// Saisi hors-ligne si besoin : `heureSaisie` est horodatée localement à la
 /// validation, l'envoi réseau se fait dès que possible (voir README §3.2).
 ///
-/// Le patient concerné est choisi dans le planning de l'AVS (`patientId`
-/// envoyé au serveur) plutôt que tapé en texte libre : la fiche
+/// Le patient concerné est choisi parmi les patients assignés à l'AVS
+/// (`patientId` envoyé au serveur) plutôt que tapé en texte libre : la fiche
 /// `RapportJournalier` référence un patient précis côté backend (voir
 /// README §6.3, `RAPPORTS_JOURNALIERS.patientId`), un nom en texte libre ne
 /// suffirait pas à identifier le bon dossier de façon fiable.
 class AvsRapportFormPage extends ConsumerStatefulWidget {
-  const AvsRapportFormPage({super.key});
+  /// Patient présélectionné (ex: bouton "Nouveau rapport" depuis l'onglet
+  /// "Mon patient", où le patient concerné est déjà connu).
+  final String? patientIdPreselectionne;
+
+  const AvsRapportFormPage({super.key, this.patientIdPreselectionne});
 
   @override
   ConsumerState<AvsRapportFormPage> createState() => _AvsRapportFormPageState();
@@ -33,6 +37,12 @@ class _AvsRapportFormPageState extends ConsumerState<AvsRapportFormPage> {
   final _conclusionCtrl = TextEditingController();
   String? _patientIdSelectionne;
   bool _envoi = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _patientIdSelectionne = widget.patientIdPreselectionne;
+  }
 
   @override
   void dispose() {
@@ -77,11 +87,11 @@ class _AvsRapportFormPageState extends ConsumerState<AvsRapportFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final planningAsync = ref.watch(monPlanningProvider);
+    final patientsAsync = ref.watch(mesPatientsProvider);
     final patientsUniques = <String, String>{};
-    planningAsync.whenData((visites) {
-      for (final v in visites) {
-        patientsUniques[v.patientId] = v.patientNom;
+    patientsAsync.whenData((patients) {
+      for (final p in patients) {
+        patientsUniques[p.id] = p.nomComplet;
       }
     });
 

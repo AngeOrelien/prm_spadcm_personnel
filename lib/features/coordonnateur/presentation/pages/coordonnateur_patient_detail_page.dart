@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
-import '../../../../shared/widgets/pages/messagerie_stub_page.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
 import '../providers/coordonnateur_providers.dart';
 import '../widgets/coordonnateur_widgets.dart';
@@ -40,14 +40,53 @@ class CoordonnateurPatientDetailPage extends ConsumerWidget {
   }
 }
 
-class _Contenu extends StatelessWidget {
+class _Contenu extends ConsumerStatefulWidget {
   final Patient patient;
   final AsyncValue<List<RapportAvs>> rapportsAsync;
 
   const _Contenu({required this.patient, required this.rapportsAsync});
 
   @override
+  ConsumerState<_Contenu> createState() => _ContenuState();
+}
+
+class _ContenuState extends ConsumerState<_Contenu> {
+  bool _ouvertureConversationEnCours = false;
+
+  Future<void> _discuter() async {
+    if (_ouvertureConversationEnCours) return;
+    final patient = widget.patient;
+    setState(() => _ouvertureConversationEnCours = true);
+    try {
+      // Le contact "patient" côté messagerie est en réalité le compte
+      // utilisateur lié au patient (`compteUtilisateurId`) — le backend
+      // devra l'exposer pour que ce bouton fonctionne de bout en bout, voir
+      // BACKEND_TODO.md. On tente `patient.id` en attendant.
+      final conversation = await ref.read(coordonnateurActionsProvider).ouvrirConversationAvec(
+            patient.id,
+            patientContexteId: patient.id,
+          );
+      if (!mounted) return;
+      context.push(
+        AppRoutes.coordonnateurMessagerieConversation(conversation.id),
+        extra: {
+          'conversationId': conversation.id,
+          'nom': patient.nomComplet,
+          'sousTitre': patient.pathologie,
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      context.showError('$e');
+    } finally {
+      if (mounted) setState(() => _ouvertureConversationEnCours = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final patient = widget.patient;
+    final rapportsAsync = widget.rapportsAsync;
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _EnTete(patient: patient)),
@@ -107,15 +146,10 @@ class _Contenu extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => MessagerieStubPage(
-                      interlocuteurNom: patient.nomComplet,
-                      interlocuteurSousTitre: patient.pathologie,
-                    ),
-                  ),
-                ),
-                icon: const Icon(Icons.chat_bubble_outline),
+                onPressed: _ouvertureConversationEnCours ? null : _discuter,
+                icon: _ouvertureConversationEnCours
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.chat_bubble_outline),
                 label: const Text('Discuter avec ce patient'),
               ),
             ),
@@ -156,10 +190,14 @@ class _EnTete extends StatelessWidget {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: Colors.white.withOpacity(0.18),
-                child: Text(
-                  _initiales(patient.nomComplet),
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w600),
-                ),
+                backgroundImage: (patient.photoUrl != null && patient.photoUrl!.isNotEmpty) ? NetworkImage(patient.photoUrl!) : null,
+                onBackgroundImageError: (patient.photoUrl != null && patient.photoUrl!.isNotEmpty) ? (_, __) {} : null,
+                child: (patient.photoUrl == null || patient.photoUrl!.isEmpty)
+                    ? Text(
+                        _initiales(patient.nomComplet),
+                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w600),
+                      )
+                    : null,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -252,7 +290,7 @@ class _CarteAvsAssigne extends StatelessWidget {
             )
           else
             TextButton.icon(
-              onPressed: () => context.push(AppRoutes.coordonnateurAffectations),
+              onPressed: () => context.push(AppRoutes.coordonnateurAffectations, extra: {'patientId': patient.id}),
               icon: const Icon(Icons.assignment_ind_outlined, size: 18),
               label: const Text('Assigner'),
             ),

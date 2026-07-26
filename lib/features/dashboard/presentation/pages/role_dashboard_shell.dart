@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../router/role_dashboards.dart';
+import '../../../auth/domain/entities/personnel.dart';
+import '../../../../shared/widgets/ai/ai_floating_button.dart';
 import '../widgets/side_quick_actions_menu.dart';
 
 /// Scaffold commun à TOUS les dashboards (AVS, Médecin, Coordonnateur,
@@ -39,6 +41,13 @@ class RoleDashboardShell extends ConsumerWidget {
             Positioned.fill(child: navigationShell),
             if (config.quickActions.isNotEmpty)
               SideQuickActionsMenu(actions: config.quickActions),
+            // Chat IA flottant : demandé pour le dashboard AVS (voir
+            // README de la passe en cours). Placé ici (dans le shell
+            // partagé par tous les rôles) plutôt que dans chaque page, pour
+            // qu'il apparaisse sur les 4 onglets sans dupliquer le code —
+            // limité au rôle AVS pour l'instant pour ne rien changer aux
+            // autres dashboards, déjà éprouvés.
+            if (config.role == RolePersonnel.avs) const AiFloatingButton(),
           ],
         ),
       ),

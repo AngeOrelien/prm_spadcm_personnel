@@ -46,4 +46,14 @@ class EnvConfig {
 
     return url ?? 'http://localhost:4000/api';
   }
+
+  /// Nom affiché de l'assistant IA de SPAD, utilisé partout dans l'app
+  /// (fil de messagerie épinglé, bouton flottant de chat...) — pas encore
+  /// arrêté définitivement, donc piloté depuis `.env` (`AI_ASSISTANT_NAME`)
+  /// plutôt que codé en dur : le renommer ne nécessitera aucun changement de
+  /// code, juste une ligne dans `.env`.
+  static String get aiAssistantName {
+    final nom = dotenv.env['AI_ASSISTANT_NAME']?.trim();
+    return (nom == null || nom.isEmpty) ? 'Assistant SPAD' : nom;
+  }
 }

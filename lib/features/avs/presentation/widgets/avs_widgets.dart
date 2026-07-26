@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
+import '../../../../shared/widgets/dashboard/dashboard_widgets.dart';
 import '../../domain/entities/avs_entities.dart';
 
 extension StatutPresenceX on StatutPresence {
@@ -21,12 +22,13 @@ extension StatutPresenceX on StatutPresence {
   };
 }
 
-/// Ligne "visite" du planning (patient + adresse + créneau + statut).
-class VisiteTile extends StatelessWidget {
-  final VisitePlanifiee visite;
+/// Ligne compacte "patient" (nom + pathologie/adresse + chevron), réutilisée
+/// sur l'accueil (teaser) et dans les listes de patients de l'AVS.
+class PatientSummaryTile extends StatelessWidget {
+  final Patient patient;
   final VoidCallback? onTap;
 
-  const VisiteTile({super.key, required this.visite, this.onTap});
+  const PatientSummaryTile({super.key, required this.patient, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -46,39 +48,22 @@ class VisiteTile extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 4,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: visite.terminee ? AppColors.success : AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+                InitialsAvatar(nomComplet: patient.nomComplet, photoUrl: patient.photoUrl, couleur: AppColors.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        visite.patientNom,
+                        patient.nomComplet,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 14),
                       ),
-                      if (visite.adressePatient.isNotEmpty)
-                        Text(visite.adressePatient, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+                      if (patient.pathologie.isNotEmpty)
+                        Text(patient.pathologie, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(visite.creneauLibelle, style: Theme.of(context).textTheme.bodySmall),
-                    if (visite.terminee)
-                      const Icon(Icons.check_circle, color: AppColors.success, size: 16)
-                    else
-                      const Icon(Icons.chevron_right, color: AppColors.textDisabled, size: 18),
-                  ],
-                ),
+                const Icon(Icons.chevron_right, color: AppColors.textDisabled, size: 18),
               ],
             ),
           ),

@@ -32,6 +32,9 @@ class AvsModel {
       patientsAssignes: (json['patientsAssignes'] ?? 0) is int
           ? json['patientsAssignes'] ?? 0
           : int.tryParse('${json['patientsAssignes']}') ?? 0,
+      // `photoUrl` n'existe pas encore sur le modèle backend `Utilisateur` —
+      // lu quand même par anticipation (voir BACKEND_TODO.md).
+      photoUrl: json['photoUrl'],
     );
   }
 }
@@ -69,10 +72,21 @@ class PatientModel {
       telephone: json['telephone'],
       avsAssigneId: avsAssigne != null ? _idDe(avsAssigne) : null,
       avsAssigneNom: avsAssigne != null ? _nomCompletDepuis(avsAssigne) : null,
+      photoUrl: json['photoUrl'],
+      email: json['email'],
     );
   }
 
   /// Corps de requête pour `POST /api/patients`.
+  ///
+  /// [email] / [motDePasse] : champs saisis dans le formulaire de création
+  /// pour donner tout de suite un accès de connexion au patient/à la
+  /// famille. ⚠️ Le backend actuel (`creerPatient`) ne fait que
+  /// `Patient.create(req.body)` : il ignore ces deux champs et ne crée pas
+  /// de compte `Utilisateur` lié. Il faudra étendre la route pour créer ce
+  /// compte (rôle `patient`, `compteUtilisateurId` renseigné) — voir
+  /// `BACKEND_TODO.md`. On les envoie déjà pour ne rien avoir à changer côté
+  /// app le jour où le backend les prendra en charge.
   static Map<String, dynamic> toCreateJson({
     required String nom,
     required String prenom,
@@ -83,6 +97,8 @@ class PatientModel {
     List<String> allergies = const [],
     List<String> difficultesMobilite = const [],
     String? telephone,
+    String? email,
+    String? motDePasse,
   }) {
     return {
       'nom': nom,
@@ -94,6 +110,8 @@ class PatientModel {
       'allergies': allergies,
       'difficultesMobilite': difficultesMobilite,
       if (telephone != null && telephone.isNotEmpty) 'telephone': telephone,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (motDePasse != null && motDePasse.isNotEmpty) 'motDePasse': motDePasse,
     };
   }
 }
@@ -141,6 +159,84 @@ class RapportModel {
       resume: _resumeDepuis(json),
       statut: _statutDepuis(json),
       motifRejet: json['motifRejet'],
+      statutRemise: statutRemiseFromString(json['statutRemise']?.toString()),
+    );
+  }
+}
+
+/// Mapping `Conversation` (voir `messagerieController.js`). [currentUserId]
+/// sert à déterminer qui est "l'autre" participant (celui à afficher comme
+/// interlocuteur dans la liste des fils de discussion).
+class ConversationModel {
+  static Conversation fromJson(Map<String, dynamic> json, String currentUserId) {
+    final participants = (json['participantsIds'] as List?) ?? const [];
+    Map? autre;
+    for (final p in participants) {
+      if (p is Map && _idDe(p) != currentUserId) {
+        autre = p;
+        break;
+      }
+    }
+    final patientContexte = json['patientContexteId'];
+
+    return Conversation(
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      nom: json['nom'],
+      interlocuteurId: autre != null ? _idDe(autre) : null,
+      interlocuteurNom: autre != null ? _nomCompletDepuis(autre) : null,
+      interlocuteurSousTitre: autre != null ? (autre['role']?.toString()) : null,
+      dernierMessage: json['dernierMessage'],
+      dernierMessageAt: json['dernierMessageAt'] != null ? DateTime.tryParse(json['dernierMessageAt'].toString()) : null,
+      nonLue: patientContexte == null ? false : false,
+    );
+  }
+}
+
+/// Mapping `Message` (voir `messagerieController.js`). [currentUserId] sert
+/// à déterminer si le message vient de moi (bulle à droite) ou non.
+class MessageModel {
+  static MessageConversation fromJson(Map<String, dynamic> json, String currentUserId) {
+    final expediteur = json['expediteurId'];
+    final expediteurId = _idDe(expediteur);
+    return MessageConversation(
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      conversationId: _idDe(json['conversationId']),
+      expediteurId: expediteurId,
+      expediteurNom: _nomCompletDepuis(expediteur),
+      contenu: json['contenu'] ?? '',
+      creeLe: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
+      deMoi: expediteurId == currentUserId,
+    );
+  }
+}
+
+/// Mapping `Presence` (check-in/check-out, voir `presenceController.js`).
+class PresenceCoordonnateurModel {
+  static PresenceAvs fromJson(Map<String, dynamic> json) {
+    final avs = json['avsId'];
+    return PresenceAvs(
+      id: (json['_id'] ?? json['id'])?.toString(),
+      avsId: _idDe(avs),
+      avsNom: _nomCompletDepuis(avs),
+      date: DateTime.tryParse('${json['date']}') ?? DateTime.now(),
+      heureCheckIn: json['heureCheckIn'] != null ? DateTime.tryParse(json['heureCheckIn'].toString()) : null,
+      heureCheckOut: json['heureCheckOut'] != null ? DateTime.tryParse(json['heureCheckOut'].toString()) : null,
+      statut: statutPresenceCoordonnateurFromString(json['statut']?.toString()),
+    );
+  }
+
+  /// Mapping de la "vue d'ensemble du jour" (`/api/presences/aujourdhui/vue-ensemble`),
+  /// dont la forme est légèrement différente (`{avs, statut, heureCheckIn, heureCheckOut}`
+  /// au lieu d'un vrai document `Presence`).
+  static PresenceAvs fromVueEnsembleJson(Map<String, dynamic> json, DateTime date) {
+    final avs = json['avs'];
+    return PresenceAvs(
+      avsId: _idDe(avs),
+      avsNom: _nomCompletDepuis(avs),
+      date: date,
+      heureCheckIn: json['heureCheckIn'] != null ? DateTime.tryParse(json['heureCheckIn'].toString()) : null,
+      heureCheckOut: json['heureCheckOut'] != null ? DateTime.tryParse(json['heureCheckOut'].toString()) : null,
+      statut: statutPresenceCoordonnateurFromString(json['statut']?.toString()),
     );
   }
 }

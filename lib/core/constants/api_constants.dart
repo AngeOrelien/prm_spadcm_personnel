@@ -54,8 +54,12 @@ class ApiConstants {
   static const String utilisateurs = '/utilisateurs';
   static const String paiements = '/paiements';
   static const String souscriptions = '/souscriptions';
-  static const String statistiques = '/statistiques';
-  static const String statistiquesExportPdf = '/statistiques/export-pdf';
+  // Le backend monte statsRoutes.js sur `/api/stats` (voir app.js), pas
+  // `/api/statistiques` — ces deux constantes pointaient vers une route
+  // inexistante avant correction.
+  static const String statistiquesOperationnelles = '/stats/operationnel';
+  static const String statistiquesPaiements = '/stats/paiements';
+  static const String statistiquesExportPdf = '/stats/export/pdf';
 
   // --- Médecin (rôle en étude) : dossiers, traitements, rendez-vous ---
   static const String traitements = '/traitements';

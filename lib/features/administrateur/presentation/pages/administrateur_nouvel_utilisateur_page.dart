@@ -8,8 +8,10 @@ import '../../domain/entities/administrateur_entities.dart';
 import '../providers/administrateur_providers.dart';
 import '../widgets/administrateur_widgets.dart';
 
-/// Création d'un compte personnel (README §3.4) : l'admin choisit le rôle,
-/// l'utilisateur reçoit ensuite un email pour sa première connexion OTP.
+/// Création d'un compte personnel (README §3.4) : l'admin choisit le rôle et
+/// fixe un mot de passe temporaire — le backend active le compte
+/// immédiatement (`estVerifie: true`, pas d'étape OTP), donc c'est à l'admin
+/// de communiquer l'email et le mot de passe à la personne concernée.
 class AdministrateurNouvelUtilisateurPage extends ConsumerStatefulWidget {
   const AdministrateurNouvelUtilisateurPage({super.key});
 
@@ -23,8 +25,10 @@ class _AdministrateurNouvelUtilisateurPageState extends ConsumerState<Administra
   final _prenomCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _telephoneCtrl = TextEditingController();
+  final _motDePasseCtrl = TextEditingController();
   RoleUtilisateur _role = RoleUtilisateur.avs;
   bool _envoi = false;
+  bool _motDePasseVisible = false;
 
   @override
   void dispose() {
@@ -32,6 +36,7 @@ class _AdministrateurNouvelUtilisateurPageState extends ConsumerState<Administra
     _prenomCtrl.dispose();
     _emailCtrl.dispose();
     _telephoneCtrl.dispose();
+    _motDePasseCtrl.dispose();
     super.dispose();
   }
 
@@ -43,11 +48,12 @@ class _AdministrateurNouvelUtilisateurPageState extends ConsumerState<Administra
         'nom': _nomCtrl.text.trim(),
         'prenom': _prenomCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
-        if (_telephoneCtrl.text.trim().isNotEmpty) 'telephone': _telephoneCtrl.text.trim(),
+        'telephone': _telephoneCtrl.text.trim(),
+        'motDePasse': _motDePasseCtrl.text,
         'role': _role.name,
       });
       if (mounted) {
-        context.showInfo('Compte créé. Un email de première connexion a été envoyé.');
+        context.showInfo('Compte créé. Communique l\'email et le mot de passe à la personne pour sa première connexion.');
         Navigator.of(context).maybePop();
       }
     } catch (e) {
@@ -108,7 +114,22 @@ class _AdministrateurNouvelUtilisateurPageState extends ConsumerState<Administra
             TextFormField(
               controller: _telephoneCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Téléphone (optionnel)'),
+              decoration: const InputDecoration(labelText: 'Téléphone'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _motDePasseCtrl,
+              obscureText: !_motDePasseVisible,
+              decoration: InputDecoration(
+                labelText: 'Mot de passe temporaire',
+                helperText: '8 caractères minimum — à communiquer à la personne',
+                suffixIcon: IconButton(
+                  icon: Icon(_motDePasseVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                  onPressed: () => setState(() => _motDePasseVisible = !_motDePasseVisible),
+                ),
+              ),
+              validator: (v) => (v == null || v.length < 8) ? '8 caractères minimum' : null,
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(

@@ -50,51 +50,69 @@ class RoleDashboardShell extends ConsumerWidget {
   }
 }
 
-/// Bottom navigation en thème sombre, volontairement indépendant du thème
-/// clair du reste de l'app (voir `AppColors.navBackground` & co).
+/// Bottom navigation en thème sombre "flottant" : une pilule arrondie avec
+/// ombre portée, détachée des bords de l'écran, volontairement indépendante
+/// du thème clair du reste de l'app (voir `AppColors.navBackground` & co).
+/// L'onglet actif se détache via un indicateur pilule + icône/label dans
+/// l'accent turquoise de la marque, pour rester lisible sur fond noir.
 class _DarkNavigationBar extends StatelessWidget {
   final RoleDashboardConfig config;
   final StatefulNavigationShell navigationShell;
 
-  const _DarkNavigationBar({required this.config, required this.navigationShell});
+  const _DarkNavigationBar({
+    required this.config,
+    required this.navigationShell,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: AppColors.navBackground,
-          indicatorColor: AppColors.navIndicator,
-          surfaceTintColor: Colors.transparent,
-          height: 64,
-          labelTextStyle: MaterialStateProperty.resolveWith(
-            (states) => TextStyle(
-              fontSize: 11,
-              fontWeight: states.contains(MaterialState.selected) ? FontWeight.w600 : FontWeight.w400,
-              color: states.contains(MaterialState.selected) ? AppColors.navSelected : AppColors.navUnselected,
+    return Container(
+      color: const Color(0xFF10181D),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          navigationBarTheme: NavigationBarThemeData(
+            backgroundColor: Colors.transparent,
+            indicatorColor: AppColors.navIndicator,
+            surfaceTintColor: Colors.transparent,
+            elevation: 4,
+            indicatorShape: const StadiumBorder(),
+            labelTextStyle: MaterialStateProperty.resolveWith(
+              (states) => TextStyle(
+                fontSize: 11,
+                fontWeight: states.contains(MaterialState.selected)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: states.contains(MaterialState.selected)
+                    ? AppColors.navSelected
+                    : AppColors.navUnselected,
+              ),
             ),
-          ),
-          iconTheme: MaterialStateProperty.resolveWith(
-            (states) => IconThemeData(
-              color: states.contains(MaterialState.selected) ? AppColors.navSelected : AppColors.navUnselected,
+            iconTheme: MaterialStateProperty.resolveWith(
+              (states) => IconThemeData(
+                size: 23,
+                color: states.contains(MaterialState.selected)
+                    ? AppColors.navSelected
+                    : AppColors.navUnselected,
+              ),
             ),
           ),
         ),
-      ),
-      child: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
+        child: NavigationBar(
+          backgroundColor: Colors.transparent,
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: (index) => navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          ),
+          destinations: [
+            for (final tab in config.tabs)
+              NavigationDestination(
+                icon: Icon(tab.icon),
+                selectedIcon: Icon(tab.selectedIcon ?? tab.icon),
+                label: tab.label,
+              ),
+          ],
         ),
-        destinations: [
-          for (final tab in config.tabs)
-            NavigationDestination(
-              icon: Icon(tab.icon),
-              selectedIcon: Icon(tab.selectedIcon ?? tab.icon),
-              label: tab.label,
-            ),
-        ],
       ),
     );
   }

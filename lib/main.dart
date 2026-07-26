@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/env_config.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
@@ -11,6 +13,22 @@ Future<void> main() async {
   // à la racine du projet, qui décide si l'app parle au backend local ou à
   // celui déployé sur Vercel (ligne `APP_ENV`).
   await EnvConfig.init();
+
+  // Défaut global de la barre système : transparente pour laisser les
+  // dégradés/fonds des pages "passer derrière" (voir aussi
+  // `AppDashboardHeader`, qui impose ses propres icônes claires sur toutes
+  // les pages avec header), et barre de navigation Android alignée sur le
+  // bottom navigation (noir) pour un rendu bord-à-bord cohérent.
+  // SystemChrome.setSystemUIOverlayStyle(
+  //   const SystemUiOverlayStyle(
+  //     statusBarColor: Colors.transparent,
+  //     statusBarIconBrightness: Brightness.dark,
+  //     statusBarBrightness: Brightness.light,
+  //     systemNavigationBarColor: AppColors.navBackground,
+  //     systemNavigationBarIconBrightness: Brightness.light,
+  //   ),
+  // );
+
   runApp(const ProviderScope(child: PrmPersonnelApp()));
 }
 

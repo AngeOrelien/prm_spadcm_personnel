@@ -221,7 +221,7 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
     basePath: AppRoutes.administrateurDashboard,
     tabs: [
       DashboardTab(
-        label: 'Tableau de bord',
+        label: 'Accueil',
         icon: Icons.home_outlined,
         selectedIcon: Icons.home,
         path: AppRoutes.administrateurAccueil,

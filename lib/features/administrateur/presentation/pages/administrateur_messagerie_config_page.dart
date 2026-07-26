@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../router/app_routes.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
-import '../../../../shared/widgets/pages/messagerie_stub_page.dart';
 
 /// Onglet "Messagerie / Config" : vue d'ensemble des échanges + réglages
 /// globaux de l'app (README §3.4 & §7.2).
@@ -32,13 +33,9 @@ class AdministrateurMessagerieConfigPage extends StatelessWidget {
                 title: const Text('Fils Administration', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Conversations avec les AVS et coordonnateurs'),
                 trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MessagerieStubPage(
-                      interlocuteurNom: 'Fils Administration',
-                      interlocuteurSousTitre: 'Toutes équipes',
-                    ),
-                  ),
+                onTap: () => context.push(
+                  AppRoutes.administrateurMessagerieAdministrationPattern,
+                  extra: const {'nom': 'Fils Administration', 'sousTitre': 'Toutes équipes'},
                 ),
               ),
               const Divider(height: 1),

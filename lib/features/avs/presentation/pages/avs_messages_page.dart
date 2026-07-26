@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../router/app_routes.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../../../../shared/widgets/dashboard/dashboard_widgets.dart';
-import '../../../../shared/widgets/pages/messagerie_stub_page.dart';
 import '../providers/avs_providers.dart';
 
 /// Onglet "Messages" : deux types de fils — Administration (besoins
@@ -40,13 +41,9 @@ class AvsMessagesPage extends ConsumerWidget {
                 sousTitre: 'Besoins matériel & logistique',
                 icone: Icons.support_agent_outlined,
                 couleur: AppColors.roleAdministrateur,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MessagerieStubPage(
-                      interlocuteurNom: 'Administration',
-                      interlocuteurSousTitre: 'Support logistique',
-                    ),
-                  ),
+                onTap: () => context.push(
+                  AppRoutes.avsMessagerieAdministrationPattern,
+                  extra: const {'nom': 'Administration', 'sousTitre': 'Support logistique'},
                 ),
               ),
               const SectionTitle(titre: 'Familles / patients'),
@@ -62,13 +59,9 @@ class AvsMessagesPage extends ConsumerWidget {
                     sousTitre: 'Famille / patient',
                     icone: Icons.family_restroom_outlined,
                     couleur: AppColors.primary,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MessagerieStubPage(
-                          interlocuteurNom: entry.value,
-                          interlocuteurSousTitre: 'Patient / famille',
-                        ),
-                      ),
+                    onTap: () => context.push(
+                      AppRoutes.avsMessageriePatient(entry.key),
+                      extra: {'nom': entry.value, 'sousTitre': 'Patient / famille'},
                     ),
                   ),
             ],

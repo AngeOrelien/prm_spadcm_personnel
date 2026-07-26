@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_file/open_file.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -20,11 +21,32 @@ class AdministrateurStatistiquesPage extends ConsumerStatefulWidget {
 class _AdministrateurStatistiquesPageState extends ConsumerState<AdministrateurStatistiquesPage> {
   bool _exportEnCours = false;
 
+  // Future<void> _exporterPdf() async {
+  //   setState(() => _exportEnCours = true);
+  //   try {
+  //     final chemin = await ref.read(administrateurActionsProvider).exporterStatistiquesPdf();
+  //     if (mounted) context.showInfo('Export PDF généré : $chemin');
+  //   } catch (e) {
+  //     if (mounted) context.showError('Échec de l\'export PDF. Réessaie plus tard.');
+  //   } finally {
+  //     if (mounted) setState(() => _exportEnCours = false);
+  //   }
+  // }
+
   Future<void> _exporterPdf() async {
     setState(() => _exportEnCours = true);
     try {
-      await ref.read(administrateurActionsProvider).exporterStatistiquesPdf();
-      if (mounted) context.showInfo('Export PDF généré. Tu le retrouveras dans tes téléchargements.');
+      final chemin = await ref.read(administrateurActionsProvider).exporterStatistiquesPdf();
+
+      if (mounted) {
+        context.showInfo('Export PDF généré avec succès');
+
+        // Ouvrir automatiquement le fichier PDF téléchargé
+        final resultat = await OpenFile.open(chemin);
+        if (resultat.type != ResultType.done) {
+          context.showError('Impossible d\'ouvrir le fichier : ${resultat.message}');
+        }
+      }
     } catch (e) {
       if (mounted) context.showError('Échec de l\'export PDF. Réessaie plus tard.');
     } finally {

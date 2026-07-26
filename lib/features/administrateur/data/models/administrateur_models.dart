@@ -9,7 +9,9 @@ class UtilisateurModel {
       email: json['email'] ?? '',
       telephone: json['telephone'],
       role: roleUtilisateurFromString(json['role']?.toString()),
-      actif: json['actif'] ?? true,
+      // Le backend expose `estActif` (voir `models/Utilisateur.js`) ;
+      // `actif` n'existe pas côté API.
+      actif: json['estActif'] ?? true,
       creeLe: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
@@ -18,7 +20,8 @@ class UtilisateurModel {
     required String nom,
     required String prenom,
     required String email,
-    String? telephone,
+    required String telephone,
+    required String motDePasse,
     required RoleUtilisateur role,
   }) {
     const roles = {
@@ -26,13 +29,13 @@ class UtilisateurModel {
       RoleUtilisateur.medecin: 'medecin',
       RoleUtilisateur.coordonnateur: 'coordonnateur',
       RoleUtilisateur.administrateur: 'administrateur',
-      RoleUtilisateur.patientFamille: 'patient_famille',
     };
     return {
       'nom': nom,
       'prenom': prenom,
       'email': email,
-      if (telephone != null && telephone.isNotEmpty) 'telephone': telephone,
+      'telephone': telephone,
+      'motDePasse': motDePasse,
       'role': roles[role],
     };
   }
@@ -40,14 +43,20 @@ class UtilisateurModel {
 
 class PaiementModel {
   static Paiement fromJson(Map<String, dynamic> json) {
-    final patient = json['patient'] ?? json['souscription']?['patient'];
-    final soin = json['soin'] ?? json['souscription']?['soin'];
+    // `listerPaiements` (côté backend) peuple `payeurId` (nom/prenom/téléphone
+    // du patient/famille qui a payé) et `souscriptionId`, mais ne peuple pas
+    // le soin souscrit derrière la souscription (pas de `.populate` imbriqué)
+    // — on retombe donc sur la référence externe de la transaction, toujours
+    // disponible, plutôt que sur un libellé de soin qu'on ne peut pas obtenir
+    // sans modifier le backend.
+    final payeur = json['payeurId'];
+    final reference = json['referenceExterne']?.toString();
     return Paiement(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
-      patientNom: patient is Map ? '${patient['prenom'] ?? ''} ${patient['nom'] ?? ''}'.trim() : (json['patientNom'] ?? 'Patient'),
-      soinLibelle: soin is Map ? (soin['nom'] ?? '').toString() : (json['soinLibelle']?.toString() ?? 'Soin'),
+      patientNom: payeur is Map ? '${payeur['prenom'] ?? ''} ${payeur['nom'] ?? ''}'.trim() : 'Patient',
+      soinLibelle: (reference != null && reference.isNotEmpty) ? 'Réf. $reference' : 'Souscription',
       montant: (json['montant'] as num?)?.toDouble() ?? 0,
-      date: DateTime.tryParse('${json['date'] ?? json['createdAt']}') ?? DateTime.now(),
+      date: DateTime.tryParse('${json['dateTransaction'] ?? json['createdAt']}') ?? DateTime.now(),
       statut: statutPaiementFromString(json['statut']?.toString()),
     );
   }
@@ -58,10 +67,14 @@ class StatistiquesGlobalesModel {
     return StatistiquesGlobales(
       totalPatients: json['totalPatients'] ?? 0,
       totalAvs: json['totalAvs'] ?? 0,
-      rapportsEnRetard: json['rapportsEnRetard'] ?? 0,
+      // `/stats/operationnel` renvoie `rapportsEnRetardAujourdhui`.
+      rapportsEnRetard: json['rapportsEnRetardAujourdhui'] ?? 0,
       avsAbsentsAujourdhui: json['avsAbsentsAujourdhui'] ?? 0,
-      montantPaiementsDuJour: (json['montantPaiementsDuJour'] as num?)?.toDouble() ?? 0,
-      paiementsDuJour: json['paiementsDuJour'] ?? 0,
+      // Montant réellement encaissé aujourd'hui : vient de `/stats/paiements`
+      // (`totalEncaisse`), combiné côté datasource — `/operationnel` ne
+      // fournit qu'un compteur (`paiementsAujourdhui`), pas de montant.
+      montantPaiementsDuJour: (json['totalEncaisse'] as num?)?.toDouble() ?? 0,
+      paiementsDuJour: json['paiementsAujourdhui'] ?? 0,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -110,45 +111,56 @@ class AppDashboardHeader extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final personnel = ref.watch(authControllerProvider).value;
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primaryLight, AppColors.primary, AppColors.primaryDark],
-          stops: [0.0, 0.55, 1.0],
-        ),
+    // Status bar "confondue" avec le header : transparente + icônes claires,
+    // pour que le dégradé du header (identique sur TOUTES les pages, voir
+    // ce widget) se prolonge visuellement derrière la barre de statut du
+    // téléphone plutôt que de laisser une bande de couleur différente.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.md, AppSpacing.md),
-          child: Row(
-            children: [
-              if (showBackButton) ...[
-                _HeaderIconButton(
-                  icon: Icons.arrow_back,
-                  tooltip: 'Retour',
-                  onTap: () => Navigator.of(context).maybePop(),
+      child: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primaryLight, AppColors.primary, AppColors.primaryDark],
+            stops: [0.0, 0.55, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+            child: Row(
+              children: [
+                if (showBackButton) ...[
+                  _HeaderIconButton(
+                    icon: Icons.arrow_back,
+                    tooltip: 'Retour',
+                    onTap: () => Navigator.of(context).maybePop(),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: showGreeting ? _buildGreeting(textTheme) : _buildTitle(textTheme),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-              ],
-              Expanded(
-                child: showGreeting ? _buildGreeting(textTheme) : _buildTitle(textTheme),
-              ),
-              for (final action in actions) ...[
+                for (final action in actions) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  _HeaderIconButton(
+                    icon: action.icon,
+                    tooltip: action.tooltip,
+                    avecPastille: action.badge,
+                    onTap: action.onTap,
+                  ),
+                ],
                 const SizedBox(width: AppSpacing.xs),
-                _HeaderIconButton(
-                  icon: action.icon,
-                  tooltip: action.tooltip,
-                  avecPastille: action.badge,
-                  onTap: action.onTap,
-                ),
+                _OverflowMenuButton(personnel: personnel),
               ],
-              const SizedBox(width: AppSpacing.xs),
-              _OverflowMenuButton(personnel: personnel),
-            ],
+            ),
           ),
         ),
       ),

@@ -13,7 +13,9 @@ RoleUtilisateur roleUtilisateurFromString(String? value) {
       return RoleUtilisateur.coordonnateur;
     case 'administrateur':
       return RoleUtilisateur.administrateur;
-    case 'patient_famille':
+    // Le backend utilise `role: 'patient'` (voir `models/Utilisateur.js`),
+    // pas `patient_famille`.
+    case 'patient':
     default:
       return RoleUtilisateur.patientFamille;
   }
@@ -56,15 +58,18 @@ class Utilisateur {
 
 enum StatutPaiement { enAttente, confirme, echoue, rembourse }
 
+/// Le backend (`models/Paiement.js`) utilise l'enum `initie | reussi | echoue
+/// | rembourse` — `en_attente`/`confirme` n'existent pas côté API, seuls les
+/// libellés d'affichage (`StatutPaiement.libelle`) restent en français.
 StatutPaiement statutPaiementFromString(String? value) {
   switch (value) {
-    case 'confirme':
+    case 'reussi':
       return StatutPaiement.confirme;
     case 'echoue':
       return StatutPaiement.echoue;
     case 'rembourse':
       return StatutPaiement.rembourse;
-    case 'en_attente':
+    case 'initie':
     default:
       return StatutPaiement.enAttente;
   }

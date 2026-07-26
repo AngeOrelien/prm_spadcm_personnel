@@ -30,35 +30,62 @@ class StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: couleur.withOpacity(0.12), shape: BoxShape.circle),
-                child: Icon(icon, color: couleur, size: 18),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                valeur,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                libelle,
-                style: Theme.of(context).textTheme.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.textPrimary.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Icône et espacements adaptés à la largeur réelle de la
+              // carte : sur une grille à 2 colonnes en petit mobile, la
+              // carte peut faire ~110px de large, contre ~170px sur un
+              // écran plus large — l'icône et les paddings suivent.
+              final compact = constraints.maxWidth < 110;
+              final iconBox = compact ? 32.0 : 40.0;
+              final iconSize = compact ? 16.0 : 20.0;
+              final vPad = compact ? AppSpacing.sm : AppSpacing.md;
+
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: vPad),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: iconBox,
+                      height: iconBox,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: couleur.withOpacity(0.12), shape: BoxShape.circle),
+                      child: Icon(icon, color: couleur, size: iconSize),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      valeur,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: compact ? 17 : 20),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      libelle,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),

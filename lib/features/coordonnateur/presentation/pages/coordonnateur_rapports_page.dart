@@ -148,6 +148,7 @@ class _RapportCardState extends ConsumerState<_RapportCard> {
     } catch (e) {
       if (!mounted) return;
       context.showError('$e');
+      rethrow;
     } finally {
       if (mounted) setState(() => _enCours = false);
     }
@@ -162,71 +163,195 @@ class _RapportCardState extends ConsumerState<_RapportCard> {
     } catch (e) {
       if (!mounted) return;
       context.showError('$e');
+      rethrow;
     } finally {
       if (mounted) setState(() => _enCours = false);
     }
   }
 
+  /// Ouvre le rapport complet en bottom sheet : le coordonnateur voit
+  /// d'abord le contenu intégral avant de pouvoir valider ou rejeter,
+  /// plutôt que d'avoir les boutons directement sur la carte de liste.
+  void _ouvrirDetail() {
+    final rapport = widget.rapport;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.62,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
+          expand: false,
+          builder: (context, scrollController) {
+            return StatefulBuilder(
+              builder: (context, setSheetState) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(4))),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+                          children: [
+                            Row(
+                              children: [
+                                InitialsAvatar(nomComplet: widget.avs?.nomComplet ?? '?', couleur: AppColors.roleAvs),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(widget.avs?.nomComplet ?? 'AVS inconnu', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16)),
+                                      Text('Patient : ${widget.patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
+                                    ],
+                                  ),
+                                ),
+                                StatusChip(label: rapport.statut.libelle, couleur: rapport.statut.couleur),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Row(
+                              children: [
+                                const Icon(Icons.event_outlined, size: 16, color: AppColors.textSecondary),
+                                const SizedBox(width: 6),
+                                Text(_formaterDate(rapport.date), style: Theme.of(context).textTheme.bodySmall),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Divider(),
+                            const SizedBox(height: AppSpacing.md),
+                            Text('Compte-rendu de la visite', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 15)),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(rapport.resume, style: Theme.of(context).textTheme.bodyLarge),
+                            if (rapport.statut == StatutRapport.rejete && rapport.motifRejet != null && rapport.motifRejet!.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.md),
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.sm),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                ),
+                                child: Text('Motif du rejet : ${rapport.motifRejet}', style: const TextStyle(color: AppColors.error)),
+                              ),
+                            ],
+                            const SizedBox(height: AppSpacing.xl),
+                          ],
+                        ),
+                      ),
+                      if (rapport.statut == StatutRapport.enAttente)
+                        SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _enCours ? null : () async {
+                                      try {
+                                        await _rejeter();
+                                        if (context.mounted) Navigator.of(context).maybePop();
+                                      } catch (_) {
+                                        setSheetState(() {});
+                                      }
+                                    },
+                                    icon: const Icon(Icons.close, color: AppColors.error),
+                                    label: const Text('Rejeter', style: TextStyle(color: AppColors.error)),
+                                    style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: _enCours ? null : () async {
+                                      try {
+                                        await _valider();
+                                        if (context.mounted) Navigator.of(context).maybePop();
+                                      } catch (_) {
+                                        setSheetState(() {});
+                                      }
+                                    },
+                                    icon: _enCours
+                                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                        : const Icon(Icons.check),
+                                    label: const Text('Valider'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final rapport = widget.rapport;
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        onTap: _ouvrirDetail,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InitialsAvatar(nomComplet: widget.avs?.nomComplet ?? '?'),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.avs?.nomComplet ?? 'AVS inconnu', style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text('Patient : ${widget.patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
-                  ],
-                ),
+              Row(
+                children: [
+                  InitialsAvatar(nomComplet: widget.avs?.nomComplet ?? '?', couleur: AppColors.roleAvs),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.avs?.nomComplet ?? 'AVS inconnu', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text('Patient : ${widget.patient?.nomComplet ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                  StatusChip(label: rapport.statut.libelle, couleur: rapport.statut.couleur),
+                ],
               ),
-              StatusChip(label: rapport.statut.libelle, couleur: rapport.statut.couleur),
+              const SizedBox(height: AppSpacing.sm),
+              Text(rapport.resume, maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(_formaterDate(rapport.date), style: Theme.of(context).textTheme.bodySmall),
+                  const Spacer(),
+                  Text(
+                    'Voir le rapport',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  ),
+                  const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(rapport.resume),
-          const SizedBox(height: 4),
-          Text(_formaterDate(rapport.date), style: Theme.of(context).textTheme.bodySmall),
-          if (rapport.statut == StatutRapport.enAttente) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _enCours ? null : _rejeter,
-                    icon: const Icon(Icons.close, color: AppColors.error),
-                    label: const Text('Rejeter', style: TextStyle(color: AppColors.error)),
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _enCours ? null : _valider,
-                    icon: _enCours
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.check),
-                    label: const Text('Valider'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

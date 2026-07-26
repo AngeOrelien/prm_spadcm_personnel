@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/pages/messagerie_stub_page.dart';
+import '../../../../router/app_routes.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../providers/coordonnateur_providers.dart';
 import '../widgets/coordonnateur_widgets.dart';
@@ -53,10 +54,9 @@ class _CoordonnateurMessageriePageState extends ConsumerState<CoordonnateurMessa
                             title: Text(avs.nomComplet, style: const TextStyle(fontWeight: FontWeight.w600)),
                             subtitle: Text(avs.statut.libelle),
                             trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => MessagerieStubPage(interlocuteurNom: avs.nomComplet, interlocuteurSousTitre: 'Agent AVS'),
-                              ),
+                            onTap: () => context.push(
+                              AppRoutes.coordonnateurMessagerieConversation(avs.id),
+                              extra: {'nom': avs.nomComplet, 'sousTitre': 'Agent AVS'},
                             ),
                           );
                         },
@@ -76,10 +76,9 @@ class _CoordonnateurMessageriePageState extends ConsumerState<CoordonnateurMessa
                             title: Text(patient.nomComplet, style: const TextStyle(fontWeight: FontWeight.w600)),
                             subtitle: const Text('Patient / famille'),
                             trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => MessagerieStubPage(interlocuteurNom: patient.nomComplet, interlocuteurSousTitre: 'Patient / famille'),
-                              ),
+                            onTap: () => context.push(
+                              AppRoutes.coordonnateurMessagerieConversation(patient.id),
+                              extra: {'nom': patient.nomComplet, 'sousTitre': 'Patient / famille'},
                             ),
                           );
                         },

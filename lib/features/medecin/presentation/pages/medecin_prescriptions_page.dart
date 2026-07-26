@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/dashboard/dashboard_widgets.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../providers/medecin_providers.dart';
 import '../widgets/medecin_widgets.dart';
-import 'medecin_prescription_form_page.dart';
 
 /// Onglet "Prescriptions" : traitements émis, actifs ou terminés.
 class MedecinPrescriptionsPage extends ConsumerWidget {
@@ -27,9 +28,7 @@ class MedecinPrescriptionsPage extends ConsumerWidget {
             HeaderAction(
               icon: Icons.add,
               tooltip: 'Nouvelle prescription',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MedecinPrescriptionFormPage()),
-              ),
+              onTap: () => context.push(AppRoutes.medecinNouvellePrescription),
             ),
           ],
         ),
@@ -46,9 +45,7 @@ class MedecinPrescriptionsPage extends ConsumerWidget {
                     titre: 'Aucune prescription',
                     message: 'Émets une prescription depuis le bouton "+".',
                     action: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MedecinPrescriptionFormPage()),
-                      ),
+                      onPressed: () => context.push(AppRoutes.medecinNouvellePrescription),
                       icon: const Icon(Icons.add),
                       label: const Text('Nouvelle prescription'),
                     ),

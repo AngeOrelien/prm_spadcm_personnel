@@ -17,9 +17,27 @@ import '../features/coordonnateur/presentation/pages/coordonnateur_profil_page.d
 import '../features/dashboard/presentation/pages/dashboard_tab_placeholder.dart';
 import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
 import '../features/medecin/presentation/pages/medecin_patient_detail_page.dart';
+import '../features/medecin/presentation/pages/medecin_prescription_form_page.dart';
 import '../screens/splash_screen.dart';
+import '../shared/widgets/pages/messagerie_stub_page.dart';
 import 'app_routes.dart';
 import 'role_dashboards.dart';
+
+/// Lit le nom/sous-titre de l'interlocuteur passés en `extra` lors d'un
+/// `context.push` vers un fil de messagerie (voir pages "Messagerie" de
+/// chaque rôle). Centralisé ici pour éviter de dupliquer le cast dans
+/// chaque `builder` ci-dessous.
+String _nomInterlocuteur(GoRouterState state, String parDefaut) {
+  final extra = state.extra;
+  if (extra is Map) return extra['nom']?.toString() ?? parDefaut;
+  return parDefaut;
+}
+
+String? _sousTitreInterlocuteur(GoRouterState state, [String? parDefaut]) {
+  final extra = state.extra;
+  if (extra is Map) return extra['sousTitre']?.toString() ?? parDefaut;
+  return parDefaut;
+}
 
 /// Pont entre le AsyncNotifierProvider de Riverpod et `refreshListenable` de
 /// go_router, pour que le router recalcule ses redirections à chaque
@@ -100,6 +118,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.avsNouveauRapport,
         builder: (context, state) => const AvsRapportFormPage(),
       ),
+      // --- AVS : fils de messagerie (Administration / patient), ouverts en
+      // plein écran via context.push depuis l'onglet "Messages" — voir
+      // `AvsMessagesPage`. Étaient auparavant ouverts via Navigator.push
+      // brut depuis l'onglet, ce qui laissait la bottom navigation du
+      // dashboard visible par-dessus (le Navigator imbriqué de l'onglet
+      // n'a pas la main sur le Scaffold parent qui la porte). Enregistrées
+      // ici, hors du StatefulShellRoute, elles montent sur le Navigator
+      // racine et masquent correctement la bottom navigation. ---
+      GoRoute(
+        path: AppRoutes.avsMessagerieAdministrationPattern,
+        builder: (context, state) {
+          return MessagerieStubPage(
+            interlocuteurNom: _nomInterlocuteur(state, 'Administration'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Support logistique'),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.avsMessageriePatientPattern,
+        builder: (context, state) {
+          return MessagerieStubPage(
+            interlocuteurNom: _nomInterlocuteur(state, 'Patient'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Patient / famille'),
+          );
+        },
+      ),
 
       // --- Coordonnateur : pages plein écran (ouvertes via context.push,
       // donc sans bottom navigation), atteintes depuis le menu d'actions
@@ -124,17 +168,57 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.coordonnateurAvsDetailPattern,
         builder: (context, state) => CoordonnateurAvsDetailPage(avsId: state.pathParameters['id']!),
       ),
+      // --- Coordonnateur : fil de messagerie (AVS de l'équipe ou
+      // patient/famille), même correctif qu'AVS ci-dessus — voir
+      // `CoordonnateurMessageriePage`. ---
+      GoRoute(
+        path: AppRoutes.coordonnateurMessagerieConversationPattern,
+        builder: (context, state) {
+          return MessagerieStubPage(
+            interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state),
+          );
+        },
+      ),
 
       // --- Médecin : fiche patient (dossier médical) ---
       GoRoute(
         path: AppRoutes.medecinPatientDetailPattern,
         builder: (context, state) => MedecinPatientDetailPage(patientId: state.pathParameters['id']!),
       ),
+      // --- Médecin : nouvelle prescription + fil de messagerie par
+      // patient, même correctif qu'AVS/Coordonnateur — voir
+      // `MedecinPrescriptionsPage` et `MedecinMessageriePage`. ---
+      GoRoute(
+        path: AppRoutes.medecinNouvellePrescription,
+        builder: (context, state) => const MedecinPrescriptionFormPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.medecinMessagerieConversationPattern,
+        builder: (context, state) {
+          return MessagerieStubPage(
+            interlocuteurNom: _nomInterlocuteur(state, 'Patient'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Patient'),
+          );
+        },
+      ),
 
       // --- Administrateur : création de compte personnel ---
       GoRoute(
         path: AppRoutes.administrateurNouvelUtilisateur,
         builder: (context, state) => const AdministrateurNouvelUtilisateurPage(),
+      ),
+      // --- Administrateur : fil de messagerie "Administration", même
+      // correctif qu'AVS/Coordonnateur/Médecin — voir
+      // `AdministrateurMessagerieConfigPage`. ---
+      GoRoute(
+        path: AppRoutes.administrateurMessagerieAdministrationPattern,
+        builder: (context, state) {
+          return MessagerieStubPage(
+            interlocuteurNom: _nomInterlocuteur(state, 'Fils Administration'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Toutes équipes'),
+          );
+        },
       ),
 
       // --- Profil : sorti de la bottom navigation pour TOUS les rôles,

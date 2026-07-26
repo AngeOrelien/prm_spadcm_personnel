@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/pages/messagerie_stub_page.dart';
+import '../../../../router/app_routes.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../providers/medecin_providers.dart';
 
@@ -40,10 +41,9 @@ class MedecinMessageriePage extends ConsumerWidget {
                     title: Text(p.nomComplet, style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text(p.pathologiePrincipale),
                     trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MessagerieStubPage(interlocuteurNom: p.nomComplet, interlocuteurSousTitre: 'Patient'),
-                      ),
+                    onTap: () => context.push(
+                      AppRoutes.medecinMessagerieConversation(p.id),
+                      extra: {'nom': p.nomComplet, 'sousTitre': 'Patient'},
                     ),
                   );
                 },

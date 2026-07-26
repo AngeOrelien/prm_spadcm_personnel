@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_dimens.dart';
+import 'app_fonts.dart';
 import 'app_text_styles.dart';
 
 /// Thème unique de l'app Personnel. Toute personnalisation visuelle
@@ -30,7 +31,7 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.background,
 
-      textTheme: const TextTheme(
+      textTheme: AppFonts.textTheme(ThemeData(brightness: Brightness.light).textTheme).copyWith(
         headlineMedium: AppTextStyles.h1,
         headlineSmall: AppTextStyles.h2,
         titleLarge: AppTextStyles.h3,
@@ -40,7 +41,7 @@ class AppTheme {
         labelLarge: AppTextStyles.button,
       ),
 
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,

@@ -23,16 +23,25 @@ class CoordonnateurAffectationsPage extends ConsumerStatefulWidget {
 class _CoordonnateurAffectationsPageState extends ConsumerState<CoordonnateurAffectationsPage> {
   String? _patientId;
   String? _avsId;
-  final _frequenceCtrl = TextEditingController(text: '3x / semaine');
+
+  // Jours de la semaine sélectionnés pour la fréquence des visites de
+  // l'AVS chez ce patient (1 = lundi ... 7 = dimanche). Remplace l'ancien
+  // champ texte libre par une sélection explicite, sans ambiguïté.
+  final Set<int> _joursSelectionnes = {};
 
   DateTime _moisAffiche = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _dateDebut = DateTime.now();
+  DateTime? _dateFin; // durée de l'affectation : optionnelle (indéterminée si vide)
   bool _enregistrement = false;
 
-  @override
-  void dispose() {
-    _frequenceCtrl.dispose();
-    super.dispose();
+  static const _nomsJoursLongs = {
+    1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche',
+  };
+
+  String get _frequenceCalculee {
+    if (_joursSelectionnes.isEmpty) return 'À définir';
+    final jours = _joursSelectionnes.toList()..sort();
+    return jours.map((j) => _nomsJoursLongs[j]).join(', ');
   }
 
   @override
@@ -100,16 +109,49 @@ class _CoordonnateurAffectationsPageState extends ConsumerState<CoordonnateurAff
                 onChanged: (v) => setState(() => _avsId = v),
               ),
             ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Fréquence des visites', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            const SizedBox(height: AppSpacing.xs),
+            Text('Sélectionne le ou les jours de passage habituels de l\'AVS.', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: _frequenceCtrl,
-              decoration: const InputDecoration(labelText: 'Fréquence des visites'),
+            _SelecteurJoursSemaine(
+              joursSelectionnes: _joursSelectionnes,
+              onToggle: (jour) => setState(() {
+                _joursSelectionnes.contains(jour) ? _joursSelectionnes.remove(jour) : _joursSelectionnes.add(jour);
+              }),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Durée de l\'affectation', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _ChampDate(
+                    label: 'Date de début',
+                    valeur: _formaterDateLongue(_dateDebut),
+                    icon: Icons.event_available_outlined,
+                    onTap: () => _choisirDateDebut(context),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _ChampDate(
+                    label: 'Date de fin (optionnelle)',
+                    valeur: _dateFin == null ? 'Indéterminée' : _formaterDateLongue(_dateFin!),
+                    icon: Icons.event_busy_outlined,
+                    onTap: () => _choisirDateFin(context),
+                    onClear: _dateFin == null ? null : () => setState(() => _dateFin = null),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.md),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: (_patientId == null || _avsId == null || _enregistrement) ? null : _creerAffectation,
+                onPressed: (_patientId == null || _avsId == null || _joursSelectionnes.isEmpty || _enregistrement)
+                    ? null
+                    : _creerAffectation,
                 icon: _enregistrement
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.check),
@@ -141,17 +183,21 @@ class _CoordonnateurAffectationsPageState extends ConsumerState<CoordonnateurAff
   Future<void> _creerAffectation() async {
     setState(() => _enregistrement = true);
     try {
+      final notes = _dateFin != null ? 'Fin prévue le ${_formaterDateLongue(_dateFin!)}.' : null;
       await ref.read(coordonnateurActionsProvider).creerAffectation(
             patientId: _patientId!,
             avsId: _avsId!,
-            frequence: _frequenceCtrl.text.trim().isEmpty ? 'À définir' : _frequenceCtrl.text.trim(),
+            frequence: _frequenceCalculee,
             dateDebut: _dateDebut,
+            notes: notes,
           );
       if (!mounted) return;
       context.showInfo('Affectation créée avec succès.');
       setState(() {
         _patientId = null;
         _avsId = null;
+        _joursSelectionnes.clear();
+        _dateFin = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -159,6 +205,35 @@ class _CoordonnateurAffectationsPageState extends ConsumerState<CoordonnateurAff
     } finally {
       if (mounted) setState(() => _enregistrement = false);
     }
+  }
+
+  Future<void> _choisirDateDebut(BuildContext context) async {
+    final choisie = await showDatePicker(
+      context: context,
+      initialDate: _dateDebut,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 730)),
+      helpText: 'Date de début de l\'AVS chez le patient',
+    );
+    if (choisie == null) return;
+    setState(() {
+      _dateDebut = choisie;
+      _moisAffiche = DateTime(choisie.year, choisie.month);
+      // La fin ne peut pas précéder le début.
+      if (_dateFin != null && _dateFin!.isBefore(choisie)) _dateFin = null;
+    });
+  }
+
+  Future<void> _choisirDateFin(BuildContext context) async {
+    final choisie = await showDatePicker(
+      context: context,
+      initialDate: _dateFin ?? _dateDebut.add(const Duration(days: 30)),
+      firstDate: _dateDebut,
+      lastDate: DateTime.now().add(const Duration(days: 1095)),
+      helpText: 'Date de fin prévue (optionnelle)',
+    );
+    if (choisie == null) return;
+    setState(() => _dateFin = choisie);
   }
 
   Future<void> _terminerAffectation(Affectation affectation) async {
@@ -178,6 +253,140 @@ class _CoordonnateurAffectationsPageState extends ConsumerState<CoordonnateurAff
       'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
     ];
     return '${date.day} ${mois[date.month - 1]} ${date.year}';
+  }
+}
+
+/// Sélecteur de jours de la semaine sous forme de pastilles à bascule
+/// (Lun...Dim) — remplace le champ texte libre pour la fréquence des
+/// visites : sélection multiple, sans ambiguïté de saisie.
+class _SelecteurJoursSemaine extends StatelessWidget {
+  final Set<int> joursSelectionnes;
+  final ValueChanged<int> onToggle;
+
+  const _SelecteurJoursSemaine({required this.joursSelectionnes, required this.onToggle});
+
+  static const _libelles = {1: 'L', 2: 'M', 3: 'M', 4: 'J', 5: 'V', 6: 'S', 7: 'D'};
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final jour in _libelles.keys)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: _JourToggle(
+                label: _libelles[jour]!,
+                selectionne: joursSelectionnes.contains(jour),
+                onTap: () => onToggle(jour),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _JourToggle extends StatelessWidget {
+  final String label;
+  final bool selectionne;
+  final VoidCallback onTap;
+
+  const _JourToggle({required this.label, required this.selectionne, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selectionne ? AppColors.primary : AppColors.surfaceMuted,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          height: 42,
+          width: 42,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selectionne ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Petit champ "date" tappable (au lieu d'un DropdownButtonFormField ou
+/// d'une saisie manuelle) : ouvre un [showDatePicker] et affiche la date
+/// choisie, avec un bouton pour effacer si optionnel.
+class _ChampDate extends StatelessWidget {
+  final String label;
+  final String valeur;
+  final IconData icon;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  const _ChampDate({
+    required this.label,
+    required this.valeur,
+    required this.icon,
+    required this.onTap,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 15, color: AppColors.textSecondary),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(label, style: Theme.of(context).textTheme.bodySmall, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      valeur,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (onClear != null)
+                    InkWell(
+                      onTap: onClear,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      child: const Padding(
+                        padding: EdgeInsets.all(2),
+                        child: Icon(Icons.close, size: 14, color: AppColors.textSecondary),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

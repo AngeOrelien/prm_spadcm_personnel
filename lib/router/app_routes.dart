@@ -39,6 +39,11 @@ abstract class AppRoutes {
   static const medecinProfil = '/medecin/profil';
   static const medecinPatientDetailPattern = '/medecin/patients/:id';
   static String medecinPatientDetail(String id) => '/medecin/patients/$id';
+  // Pages plein écran (context.push, donc sans bottom navigation) :
+  // formulaire de prescription et fils de messagerie par patient.
+  static const medecinNouvellePrescription = '/medecin/prescriptions/nouvelle';
+  static const medecinMessagerieConversationPattern = '/medecin/messagerie/:id';
+  static String medecinMessagerieConversation(String id) => '/medecin/messagerie/$id';
 
   // --- Coordonnateur : Accueil / Patients / Équipe / Rapports / Messagerie (5 onglets) ---
   static const coordonnateurDashboard = '/coordonnateur';
@@ -75,4 +80,6 @@ abstract class AppRoutes {
   static const administrateurNouvelUtilisateur = '/administrateur/utilisateurs/nouveau';
   static const administrateurUtilisateurDetailPattern = '/administrateur/utilisateurs/:id';
   static String administrateurUtilisateurDetail(String id) => '/administrateur/utilisateurs/$id';
+  // Fil de messagerie "Administration" (context.push, sans bottom navigation).
+  static const administrateurMessagerieAdministrationPattern = '/administrateur/messagerie/administration';
 }

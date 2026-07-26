@@ -90,7 +90,13 @@ class AvsRemoteDataSource {
 
   Future<StatistiquesPonctualiteAvs> mesStatistiques({String avsId = 'avs-01'}) async {
     try {
-      final response = await _apiClient.dio.get('${ApiConstants.statistiques}/mes-stats');
+      // ⚠️ Pas de route backend dédiée aux stats personnelles d'un AVS —
+      // `/stats/ponctualite` existe mais est réservée à coordonnateur/admin.
+      // Référence corrigée uniquement pour ne pas casser la compilation
+      // après le renommage de `ApiConstants.statistiques` (voir la revue du
+      // branchement admin) ; le vrai branchement du dashboard AVS est un
+      // chantier à part, pas encore fait.
+      final response = await _apiClient.dio.get('${ApiConstants.statistiquesOperationnelles}/mes-stats');
       final json = response.data['statistiques'] as Map<String, dynamic>;
       return StatistiquesPonctualiteAvs(
         rapportsATemps: json['rapportsATemps'] ?? 0,

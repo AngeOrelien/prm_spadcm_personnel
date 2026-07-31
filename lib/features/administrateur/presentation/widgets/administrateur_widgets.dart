@@ -21,6 +21,24 @@ extension RoleUtilisateurX on RoleUtilisateur {
   };
 }
 
+extension StatutSouscriptionX on StatutSouscription {
+  String get libelle => switch (this) {
+    StatutSouscription.enAttentePaiement => 'En attente de paiement',
+    StatutSouscription.active => 'Active',
+    StatutSouscription.expiree => 'Expirée',
+    StatutSouscription.annulee => 'Annulée',
+    StatutSouscription.resiliee => 'Résiliée',
+  };
+
+  Color get couleur => switch (this) {
+    StatutSouscription.enAttentePaiement => AppColors.warning,
+    StatutSouscription.active => AppColors.success,
+    StatutSouscription.expiree => AppColors.textDisabled,
+    StatutSouscription.annulee => AppColors.error,
+    StatutSouscription.resiliee => AppColors.info,
+  };
+}
+
 extension StatutPaiementX on StatutPaiement {
   String get libelle => switch (this) {
     StatutPaiement.enAttente => 'En attente',

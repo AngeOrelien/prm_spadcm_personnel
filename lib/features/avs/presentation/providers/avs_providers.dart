@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/app_exception.dart';
+import '../../../../shared/services/rapports_locaux_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
 import '../../data/datasources/avs_remote_datasource.dart';
@@ -15,6 +17,18 @@ import '../../domain/entities/avs_entities.dart';
 
 final avsRemoteDataSourceProvider = Provider<AvsRemoteDataSource>((ref) {
   return AvsRemoteDataSource(ref.watch(apiClientProvider));
+});
+
+/// Stockage local des rapports dont l'envoi a échoué (pas de réseau) — voir
+/// `RapportsLocauxService`.
+final rapportsLocauxServiceProvider = Provider<RapportsLocauxService>((ref) {
+  return RapportsLocauxService();
+});
+
+/// Rapports en attente de synchronisation (créés hors-ligne ou dont l'envoi
+/// a échoué), affichés en tête de "Mes rapports" avec un bouton "Réessayer".
+final rapportsNonSynchronisesProvider = FutureProvider.autoDispose<List<RapportLocal>>((ref) {
+  return ref.watch(rapportsLocauxServiceProvider).lister();
 });
 
 /// Id de l'AVS connecté — nécessaire pour les routes qui ne s'auto-filtrent
@@ -106,13 +120,59 @@ class AvsActions {
   AvsRemoteDataSource get _ds => _ref.read(avsRemoteDataSourceProvider);
   String get _monIdActuel => _ref.read(authControllerProvider).value?.id ?? '';
 
-  Future<void> creerRapport(Map<String, dynamic> corps) async {
-    await _ds.creerRapport(corps);
-    _ref.invalidate(mesRapportsProvider);
-    if (corps['patientId'] != null) {
-      _ref.invalidate(mesRapportsDuPatientProvider(corps['patientId'].toString()));
+  /// Envoie le rapport au serveur. Si la connexion ne passe pas (pas de
+  /// réponse HTTP du tout — timeout/serveur injoignable, voir
+  /// [AppException.statusCode] nul), le rapport n'est PAS perdu : il est
+  /// gardé localement (voir `RapportsLocauxService`) pour réessai ultérieur,
+  /// et [RapportEnregistreLocalementException] est levée pour que l'UI
+  /// affiche un message différent d'un échec pur et simple.
+  ///
+  /// Une erreur applicative renvoyée PAR le serveur (validation, 4xx/5xx
+  /// explicite) n'est en revanche pas mise en attente : elle est remontée
+  /// telle quelle, le problème ne se réglera pas tout seul en réessayant.
+  Future<void> creerRapport(Map<String, dynamic> corps, {required String patientNom}) async {
+    try {
+      await _ds.creerRapport(corps);
+      _ref.invalidate(mesRapportsProvider);
+      if (corps['patientId'] != null) {
+        _ref.invalidate(mesRapportsDuPatientProvider(corps['patientId'].toString()));
+      }
+      _ref.invalidate(mesStatistiquesProvider);
+    } on AppException catch (e) {
+      if (e.statusCode == null) {
+        await _ref.read(rapportsLocauxServiceProvider).ajouter(
+              RapportLocal(
+                idLocal: DateTime.now().microsecondsSinceEpoch.toString(),
+                patientId: corps['patientId']?.toString() ?? '',
+                patientNom: patientNom,
+                creeLe: DateTime.now(),
+                corps: corps,
+              ),
+            );
+        _ref.invalidate(rapportsNonSynchronisesProvider);
+        throw const RapportEnregistreLocalementException();
+      }
+      rethrow;
     }
-    _ref.invalidate(mesStatistiquesProvider);
+  }
+
+  /// Réessaie l'envoi d'un rapport resté en attente de synchronisation. En
+  /// cas de nouvel échec réseau, il reste simplement dans la liste locale
+  /// (avec le message d'erreur mis à jour) pour un prochain essai.
+  Future<void> reessayerEnvoiRapport(RapportLocal rapportLocal) async {
+    final service = _ref.read(rapportsLocauxServiceProvider);
+    try {
+      await _ds.creerRapport(rapportLocal.corps);
+      await service.supprimer(rapportLocal.idLocal);
+      _ref.invalidate(rapportsNonSynchronisesProvider);
+      _ref.invalidate(mesRapportsProvider);
+      _ref.invalidate(mesRapportsDuPatientProvider(rapportLocal.patientId));
+      _ref.invalidate(mesStatistiquesProvider);
+    } on AppException catch (e) {
+      await service.marquerErreur(rapportLocal.idLocal, e.message);
+      _ref.invalidate(rapportsNonSynchronisesProvider);
+      rethrow;
+    }
   }
 
   Future<void> checkIn({required double latitude, required double longitude}) async {
@@ -149,3 +209,10 @@ class AvsActions {
 final avsActionsProvider = Provider<AvsActions>((ref) {
   return AvsActions(ref);
 });
+
+/// Levée par [AvsActions.creerRapport] quand l'envoi échoue faute de
+/// connexion : le rapport est bien enregistré (localement), ce n'est donc
+/// pas un échec à traiter comme les autres côté UI.
+class RapportEnregistreLocalementException implements Exception {
+  const RapportEnregistreLocalementException();
+}

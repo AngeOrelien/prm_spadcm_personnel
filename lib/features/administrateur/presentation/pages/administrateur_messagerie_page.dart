@@ -8,44 +8,39 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/misc/scroll_refresh_listener.dart';
+import '../../../avs/domain/entities/avs_entities.dart';
 import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
 import '../../../coordonnateur/presentation/widgets/coordonnateur_widgets.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
-import '../../domain/entities/avs_entities.dart';
-import '../providers/avs_providers.dart';
+import '../providers/administrateur_providers.dart';
 
-/// Onglet "Messages" de l'AVS : fil épinglé avec l'assistant IA de SPAD,
-/// puis conversations avec son patient, les coordonnateurs, les médecins et
-/// les administrateurs. Même branchement réel que la messagerie
-/// coordonnateur (`POST/GET /api/conversations`) — voir
-/// `CoordonnateurMessageriePage`, dont ce fichier reprend le pattern.
+/// Onglet "Messagerie" de l'administrateur : fil épinglé avec l'assistant IA
+/// de SPAD (même présentation que côté AVS, voir `AvsMessagesPage`), puis
+/// les conversations avec les AVS, les médecins, les coordonnateurs et les
+/// patients/familles.
 ///
-/// ⚠️ Les sections Coordonnateurs/Médecins/Administrateurs utilisent
-/// `GET /utilisateurs/role/:role`, réservé côté backend actuel à
-/// coordonnateur/administrateur (403 pour un AVS) — voir `BACKEND-TODO.md`.
-/// En attendant l'ouverture de cette route, ces sections s'affichent vides
-/// plutôt que casser l'écran.
-class AvsMessagesPage extends ConsumerStatefulWidget {
-  const AvsMessagesPage({super.key});
+/// Contrairement aux autres rôles, l'administrateur peut communiquer avec
+/// TOUT LE MONDE dans l'application — `GET /utilisateurs/role/:role` lui est
+/// ouvert côté backend pour chacun de ces rôles (voir
+/// `AdministrateurRemoteDataSource.listerPersonnelParRole`).
+class AdministrateurMessageriePage extends ConsumerStatefulWidget {
+  const AdministrateurMessageriePage({super.key});
 
   @override
-  ConsumerState<AvsMessagesPage> createState() => _AvsMessagesPageState();
+  ConsumerState<AdministrateurMessageriePage> createState() => _AdministrateurMessageriePageState();
 }
 
-class _AvsMessagesPageState extends ConsumerState<AvsMessagesPage> {
+class _AdministrateurMessageriePageState extends ConsumerState<AdministrateurMessageriePage> {
   String? _idEnCoursDouverture;
 
-  Future<void> _ouvrirConversation(String participantId, String nom, String sousTitre, {String? patientContexteId}) async {
+  Future<void> _ouvrirConversation(String participantId, String nom, String sousTitre) async {
     if (_idEnCoursDouverture != null) return;
     setState(() => _idEnCoursDouverture = participantId);
     try {
-      final conversation = await ref.read(avsActionsProvider).ouvrirConversationAvec(
-            participantId,
-            patientContexteId: patientContexteId,
-          );
+      final conversation = await ref.read(administrateurActionsProvider).ouvrirConversationAvec(participantId);
       if (!mounted) return;
       context.push(
-        AppRoutes.avsMessagerieConversation(conversation.id),
+        AppRoutes.administrateurMessagerieConversation(conversation.id),
         extra: {'conversationId': conversation.id, 'nom': nom, 'sousTitre': sousTitre},
       );
     } catch (e) {
@@ -57,20 +52,20 @@ class _AvsMessagesPageState extends ConsumerState<AvsMessagesPage> {
   }
 
   void _rafraichirTout() {
-    ref.invalidate(mesPatientsProvider);
-    ref.invalidate(personnelAnnuaireProvider('coordonnateur'));
+    ref.invalidate(personnelAnnuaireProvider('avs'));
     ref.invalidate(personnelAnnuaireProvider('medecin'));
-    ref.invalidate(personnelAnnuaireProvider('administrateur'));
-    ref.invalidate(avsConversationsProvider);
+    ref.invalidate(personnelAnnuaireProvider('coordonnateur'));
+    ref.invalidate(personnelAnnuaireProvider('patient'));
+    ref.invalidate(administrateurConversationsProvider);
   }
 
   @override
   Widget build(BuildContext context) {
-    final patientsAsync = ref.watch(mesPatientsProvider);
-    final coordonnateursAsync = ref.watch(personnelAnnuaireProvider('coordonnateur'));
+    final avsAsync = ref.watch(personnelAnnuaireProvider('avs'));
     final medecinsAsync = ref.watch(personnelAnnuaireProvider('medecin'));
-    final adminsAsync = ref.watch(personnelAnnuaireProvider('administrateur'));
-    final conversationsAsync = ref.watch(avsConversationsProvider);
+    final coordonnateursAsync = ref.watch(personnelAnnuaireProvider('coordonnateur'));
+    final patientsAsync = ref.watch(personnelAnnuaireProvider('patient'));
+    final conversationsAsync = ref.watch(administrateurConversationsProvider);
     final conversations = conversationsAsync.whenOrNull(data: (v) => v) ?? const <Conversation>[];
 
     String? dernierMessageAvec(String participantId) {
@@ -82,7 +77,11 @@ class _AvsMessagesPageState extends ConsumerState<AvsMessagesPage> {
 
     return Column(
       children: [
-        const AppDashboardHeader.page(title: 'Messages', subtitle: 'Patient, équipe et assistant IA', leadingIcon: Icons.forum_outlined),
+        const AppDashboardHeader.page(
+          title: 'Messagerie',
+          subtitle: 'Toute l\'équipe et les familles',
+          leadingIcon: Icons.forum_outlined,
+        ),
         const Divider(height: 1),
         Expanded(
           child: RefreshIndicator(
@@ -93,28 +92,15 @@ class _AvsMessagesPageState extends ConsumerState<AvsMessagesPage> {
                 padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                 children: [
                   const SizedBox(height: AppSpacing.sm),
-                  _TuileIaEpinglee(onTap: () => context.push(AppRoutes.avsMessagerieIa)),
+                  _TuileIaEpinglee(onTap: () => context.push(AppRoutes.administrateurMessagerieIa)),
                   const Divider(height: AppSpacing.lg),
-                  _SectionMessagerie(
-                    titre: patientsAsync.whenOrNull(data: (v) => v.length) == 1 ? 'Mon patient' : 'Mes patients',
-                    async: patientsAsync,
-                    messageVide: 'Aucun patient assigné pour le moment.',
-                    itemBuilder: (patient) => _TuileContact(
-                      nom: patient.nomComplet,
-                      sousTitre: dernierMessageAvec(patient.id) ?? 'Patient',
-                      photoUrl: patient.photoUrl,
-                      couleur: AppColors.primary,
-                      chargement: _idEnCoursDouverture == patient.id,
-                      onTap: () => _ouvrirConversation(patient.id, patient.nomComplet, 'Patient', patientContexteId: patient.id),
-                    ),
-                  ),
                   _SectionAnnuaire(
-                    titre: 'Coordonnateurs',
-                    async: coordonnateursAsync,
-                    couleur: AppColors.roleCoordonnateur,
+                    titre: 'AVS',
+                    async: avsAsync,
+                    couleur: AppColors.roleAvs,
                     dernierMessageAvec: dernierMessageAvec,
                     idEnCoursDouverture: _idEnCoursDouverture,
-                    onOuvrir: (p) => _ouvrirConversation(p.id, p.nomComplet, 'Coordonnateur'),
+                    onOuvrir: (p) => _ouvrirConversation(p.id, p.nomComplet, 'Agent AVS'),
                   ),
                   _SectionAnnuaire(
                     titre: 'Médecins',
@@ -125,12 +111,20 @@ class _AvsMessagesPageState extends ConsumerState<AvsMessagesPage> {
                     onOuvrir: (p) => _ouvrirConversation(p.id, p.nomComplet, 'Médecin'),
                   ),
                   _SectionAnnuaire(
-                    titre: 'Administrateurs',
-                    async: adminsAsync,
-                    couleur: AppColors.roleAdministrateur,
+                    titre: 'Coordonnateurs',
+                    async: coordonnateursAsync,
+                    couleur: AppColors.roleCoordonnateur,
                     dernierMessageAvec: dernierMessageAvec,
                     idEnCoursDouverture: _idEnCoursDouverture,
-                    onOuvrir: (p) => _ouvrirConversation(p.id, p.nomComplet, 'Administrateur'),
+                    onOuvrir: (p) => _ouvrirConversation(p.id, p.nomComplet, 'Coordonnateur'),
+                  ),
+                  _SectionAnnuaire(
+                    titre: 'Patients / Familles',
+                    async: patientsAsync,
+                    couleur: AppColors.primary,
+                    dernierMessageAvec: dernierMessageAvec,
+                    idEnCoursDouverture: _idEnCoursDouverture,
+                    onOuvrir: (p) => _ouvrirConversation(p.id, p.nomComplet, 'Patient / famille'),
                   ),
                 ],
               ),
@@ -192,41 +186,6 @@ class _TuileIaEpinglee extends StatelessWidget {
   }
 }
 
-class _SectionMessagerie extends StatelessWidget {
-  final String titre;
-  final AsyncValue<List<Patient>> async;
-  final String messageVide;
-  final Widget Function(Patient) itemBuilder;
-
-  const _SectionMessagerie({required this.titre, required this.async, required this.messageVide, required this.itemBuilder});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionTitle(titre: titre),
-        async.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: LinearProgressIndicator(),
-          ),
-          error: (e, st) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Text('Impossible de charger cette section.', style: Theme.of(context).textTheme.bodySmall),
-          ),
-          data: (liste) => liste.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: Text(messageVide, style: Theme.of(context).textTheme.bodySmall),
-                )
-              : Column(children: [for (final p in liste) itemBuilder(p)]),
-        ),
-      ],
-    );
-  }
-}
-
 class _SectionAnnuaire extends StatelessWidget {
   final String titre;
   final AsyncValue<List<PersonnelAnnuaire>> async;
@@ -255,9 +214,6 @@ class _SectionAnnuaire extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: LinearProgressIndicator(),
           ),
-          // Repli silencieux : la route annuaire n'est pas encore ouverte à
-          // l'AVS côté backend (403) — voir `BACKEND-TODO.md`. On affiche un
-          // message neutre plutôt qu'une grosse erreur réseau.
           error: (e, st) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Text('Non disponible pour le moment.', style: Theme.of(context).textTheme.bodySmall),
@@ -272,7 +228,7 @@ class _SectionAnnuaire extends StatelessWidget {
                     for (final p in liste)
                       _TuileContact(
                         nom: p.nomComplet,
-                        sousTitre: dernierMessageAvec(p.id) ?? titre.substring(0, titre.length - 1),
+                        sousTitre: dernierMessageAvec(p.id) ?? titre,
                         photoUrl: p.photoUrl,
                         couleur: couleur,
                         chargement: idEnCoursDouverture == p.id,

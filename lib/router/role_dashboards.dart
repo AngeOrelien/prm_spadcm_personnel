@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../features/administrateur/presentation/pages/administrateur_accueil_page.dart';
-import '../features/administrateur/presentation/pages/administrateur_messagerie_config_page.dart';
-import '../features/administrateur/presentation/pages/administrateur_paiements_page.dart';
+import '../features/administrateur/presentation/pages/administrateur_messagerie_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_statistiques_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_utilisateurs_page.dart';
 import '../features/auth/domain/entities/personnel.dart';
@@ -218,7 +217,16 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
     ],
   ),
 
-  // --- Administrateur : Tableau de bord / Utilisateurs / Paiements / Statistiques / Messagerie-Config ---
+  // --- Administrateur : Tableau de bord / Ressources / Statistiques /
+  // Messagerie (4 onglets) ---
+  //
+  // "Ressources" regroupe la gestion des comptes personnel, des
+  // souscriptions et du catalogue de soins SPAD (CRUD complet, avec 3
+  // sous-onglets) — voir `AdministrateurUtilisateursPage`. Son résumé
+  // chiffré (souscriptions/paiements) est repris dans "Statistiques".
+  // "Messagerie" bascule sur la vraie messagerie (IA épinglée +
+  // AVS/médecins/coordonnateurs/patients), même pattern que les autres
+  // rôles — voir `AdministrateurMessageriePage`.
   RolePersonnel.administrateur: RoleDashboardConfig(
     role: RolePersonnel.administrateur,
     libelleRole: 'Administrateur',
@@ -232,18 +240,11 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
         pageBuilder: _administrateurAccueil,
       ),
       DashboardTab(
-        label: 'Utilisateurs',
-        icon: Icons.manage_accounts_outlined,
-        selectedIcon: Icons.manage_accounts,
+        label: 'Ressources',
+        icon: Icons.inventory_2_outlined,
+        selectedIcon: Icons.inventory_2,
         path: AppRoutes.administrateurUtilisateurs,
         pageBuilder: _administrateurUtilisateurs,
-      ),
-      DashboardTab(
-        label: 'Paiements',
-        icon: Icons.payments_outlined,
-        selectedIcon: Icons.payments,
-        path: AppRoutes.administrateurPaiements,
-        pageBuilder: _administrateurPaiements,
       ),
       DashboardTab(
         label: 'Statistiques',
@@ -254,10 +255,26 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
       ),
       DashboardTab(
         label: 'Messagerie',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
+        icon: Icons.forum_outlined,
+        selectedIcon: Icons.forum,
         path: AppRoutes.administrateurMessagerie,
         pageBuilder: _administrateurMessagerie,
+      ),
+    ],
+    // Bouton flottant façon WhatsApp (voir `SideQuickActionsMenu`), affiché
+    // uniquement sur les onglets de la bottom navigation (jamais sur les
+    // pages poussées en plein écran — géré par `RoleDashboardShell`, aucune
+    // logique supplémentaire nécessaire ici).
+    quickActions: const [
+      QuickAction(
+        label: 'Ajouter un utilisateur',
+        icon: Icons.person_add_alt_1_outlined,
+        route: AppRoutes.administrateurNouvelUtilisateur,
+      ),
+      QuickAction(
+        label: 'Communication avec l\'IA de SPAD',
+        icon: Icons.smart_toy_outlined,
+        route: AppRoutes.administrateurMessagerieIa,
       ),
     ],
   ),
@@ -276,6 +293,5 @@ Widget _medecinMessagerie(BuildContext context) => const MedecinMessageriePage()
 
 Widget _administrateurAccueil(BuildContext context) => const AdministrateurAccueilPage();
 Widget _administrateurUtilisateurs(BuildContext context) => const AdministrateurUtilisateursPage();
-Widget _administrateurPaiements(BuildContext context) => const AdministrateurPaiementsPage();
 Widget _administrateurStatistiques(BuildContext context) => const AdministrateurStatistiquesPage();
-Widget _administrateurMessagerie(BuildContext context) => const AdministrateurMessagerieConfigPage();
+Widget _administrateurMessagerie(BuildContext context) => const AdministrateurMessageriePage();

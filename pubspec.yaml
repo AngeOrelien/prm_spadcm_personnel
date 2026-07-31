@@ -48,6 +48,10 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.7
   open_file: ^4.0.0
+  # Sélection d'images/vidéos depuis la galerie ou l'appareil photo — utilisé
+  # par l'onglet "Ressources" > "Soins" de l'administrateur pour illustrer le
+  # catalogue de soins (image de couverture, galerie, courtes vidéos).
+  image_picker: ^1.2.3
 
 flutter_launcher_icons:
   image_path: "assets/icons/prmspad_personnel.png"

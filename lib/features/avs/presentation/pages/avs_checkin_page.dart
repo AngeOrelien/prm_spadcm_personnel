@@ -34,7 +34,37 @@ class _AvsCheckinPageState extends ConsumerState<AvsCheckinPage> {
     ref.invalidate(mesPresencesProvider);
   }
 
+  Future<bool> _confirmer({
+    required String titre,
+    required String message,
+    required String libelleAction,
+    required IconData icon,
+  }) async {
+    final resultat = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(icon, color: AppColors.primary, size: 32),
+        title: Text(titre),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: Text(libelleAction)),
+        ],
+      ),
+    );
+    return resultat ?? false;
+  }
+
   Future<void> _checkIn() async {
+    final confirme = await _confirmer(
+      titre: 'Confirmer le check-in ?',
+      message: 'Ton arrivée sera enregistrée avec l\'heure actuelle et ta position. '
+          'Un seul check-in est possible par jour, et il doit être fait avant que tes rapports du jour ne puissent être validés.',
+      libelleAction: 'Confirmer le check-in',
+      icon: Icons.login,
+    );
+    if (!confirme || !mounted) return;
+
     setState(() => _enCours = true);
     try {
       // Géolocalisation réelle branchée plus tard (package `geolocator`) ;
@@ -49,6 +79,15 @@ class _AvsCheckinPageState extends ConsumerState<AvsCheckinPage> {
   }
 
   Future<void> _checkOut() async {
+    final confirme = await _confirmer(
+      titre: 'Confirmer le check-out ?',
+      message: 'Ton départ sera enregistré avec l\'heure actuelle. Fais-le une fois ta visite terminée : '
+          'tu ne pourras plus faire de check-out supplémentaire aujourd\'hui après confirmation.',
+      libelleAction: 'Confirmer le check-out',
+      icon: Icons.logout,
+    );
+    if (!confirme || !mounted) return;
+
     setState(() => _enCours = true);
     try {
       await ref.read(avsActionsProvider).checkOut();

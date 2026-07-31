@@ -2,11 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/administrateur/presentation/pages/administrateur_conversation_page.dart';
+import '../features/administrateur/presentation/pages/administrateur_ia_conversation_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_nouvel_utilisateur_page.dart';
+import '../features/administrateur/presentation/pages/administrateur_soin_form_page.dart';
+import '../features/administrateur/presentation/pages/administrateur_souscription_detail_page.dart';
+import '../features/administrateur/presentation/pages/administrateur_utilisateur_modifier_page.dart';
+import '../features/administrateur/domain/entities/administrateur_entities.dart';
 import '../features/auth/presentation/pages/login_email_page.dart';
 import '../features/auth/presentation/pages/otp_verification_page.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/avs/presentation/pages/avs_conversation_page.dart';
+import '../features/avs/presentation/pages/avs_ia_conversation_page.dart';
 import '../features/avs/presentation/pages/avs_patient_detail_page.dart';
 import '../features/avs/presentation/pages/avs_profil_page.dart';
 import '../features/avs/presentation/pages/avs_rapport_form_page.dart';
@@ -157,6 +164,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.avsPatientDetailPattern,
         builder: (context, state) => AvsPatientDetailPage(patientId: state.pathParameters['id']!),
       ),
+      // --- AVS : fil de discussion avec l'assistant IA en page complète —
+      // ouvert depuis le fil épinglé de "Messages" (pas le bouton flottant,
+      // qui garde sa feuille modale). Enregistré AVANT le pattern `:id`
+      // dynamique ci-dessous pour que ce chemin statique soit bien
+      // prioritaire. ---
+      GoRoute(
+        path: AppRoutes.avsMessagerieIa,
+        builder: (context, state) => const AvsIaConversationPage(),
+      ),
       // --- AVS : fil de messagerie réel (patient, coordonnateurs, médecins,
       // administrateurs), branché sur `/api/conversations` — voir
       // `AvsMessagesPage`, qui appelle `ouvrirConversationAvec(...)` avant
@@ -262,15 +278,53 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.administrateurNouvelUtilisateur,
         builder: (context, state) => const AdministrateurNouvelUtilisateurPage(),
       ),
-      // --- Administrateur : fil de messagerie "Administration", même
-      // correctif qu'AVS/Coordonnateur/Médecin — voir
-      // `AdministrateurMessagerieConfigPage`. ---
+      // --- Administrateur : édition d'un compte existant — l'entité est
+      // passée en `extra` par l'onglet "Ressources" (voir
+      // `_OngletUtilisateurs`), pas de re-fetch réseau nécessaire. ---
       GoRoute(
-        path: AppRoutes.administrateurMessagerieAdministrationPattern,
+        path: AppRoutes.administrateurUtilisateurModifierPattern,
+        builder: (context, state) => AdministrateurUtilisateurModifierPage(
+          utilisateur: state.extra as Utilisateur,
+        ),
+      ),
+      // --- Administrateur : catalogue de soins (onglet "Ressources") ---
+      GoRoute(
+        path: AppRoutes.administrateurNouveauSoin,
+        builder: (context, state) => const AdministrateurSoinFormPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.administrateurSoinModifierPattern,
+        builder: (context, state) => AdministrateurSoinFormPage(
+          soinExistant: state.extra as Soin,
+        ),
+      ),
+      // --- Administrateur : détail/édition d'une souscription (onglet
+      // "Ressources") ---
+      GoRoute(
+        path: AppRoutes.administrateurSouscriptionDetailPattern,
+        builder: (context, state) => AdministrateurSouscriptionDetailPage(
+          souscription: state.extra as Souscription,
+        ),
+      ),
+      // --- Administrateur : fil de discussion avec l'assistant IA en page
+      // complète — même pattern qu'AVS, enregistré AVANT le pattern `:id`
+      // dynamique ci-dessous pour que ce chemin statique soit prioritaire. ---
+      GoRoute(
+        path: AppRoutes.administrateurMessagerieIa,
+        builder: (context, state) => const AdministrateurIaConversationPage(),
+      ),
+      // --- Administrateur : fil de messagerie réel (AVS, médecins,
+      // coordonnateurs, patients/familles), branché sur `/api/conversations`
+      // — voir `AdministrateurMessageriePage`, qui appelle
+      // `ouvrirConversationAvec(...)` avant de pousser cette route avec le
+      // vrai id de conversation en `extra`. ---
+      GoRoute(
+        path: AppRoutes.administrateurMessagerieConversationPattern,
         builder: (context, state) {
-          return MessagerieStubPage(
-            interlocuteurNom: _nomInterlocuteur(state, 'Fils Administration'),
-            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Toutes équipes'),
+          return AdministrateurConversationPage(
+            conversationId: _conversationId(state),
+            interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state),
           );
         },
       ),

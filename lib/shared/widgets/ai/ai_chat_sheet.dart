@@ -6,11 +6,14 @@ import '../../../core/config/env_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../misc/app_circle_icon_button.dart';
+import 'ai_chat_logic.dart';
 
 /// Ouvre le chat de l'assistant IA de SPAD dans une feuille modale
-/// plein-écran-ish (façon fil de messagerie). Un seul point d'entrée pour
-/// que le bouton flottant global et le fil épinglé de l'onglet Messages
-/// ouvrent exactement la même expérience.
+/// plein-écran-ish (façon fil de messagerie). Point d'entrée du BOUTON
+/// FLOTTANT global uniquement — le fil épinglé de l'onglet Messages ouvre
+/// désormais une page complète (`avs_ia_conversation_page.dart`), pas cette
+/// feuille modale ; les deux partagent la même logique de réponse (voir
+/// `ai_chat_logic.dart`).
 Future<void> ouvrirChatIa(BuildContext context) {
   return showModalBottomSheet(
     context: context,
@@ -20,21 +23,14 @@ Future<void> ouvrirChatIa(BuildContext context) {
   );
 }
 
-class _MessageIa {
-  final String texte;
-  final bool deMoi;
-  final DateTime heure;
-
-  const _MessageIa({required this.texte, required this.deMoi, required this.heure});
-}
-
 /// Chat avec l'assistant IA de SPAD.
 ///
 /// ⚠️ Pas encore de backend IA (voir `BACKEND-TODO.md`) : les réponses sont
-/// simulées côté app (délai + réponse générique/à mots-clés) pour que
-/// l'expérience soit déjà utilisable et testable. Le jour où un vrai
-/// endpoint existe, seul `_repondre()` ci-dessous aura besoin de changer
-/// (appel réseau au lieu du générateur local).
+/// simulées côté app (délai + réponse générique/à mots-clés, voir
+/// `ai_chat_logic.dart`) pour que l'expérience soit déjà utilisable et
+/// testable. Le jour où un vrai endpoint existe, seul `_envoyer()`
+/// ci-dessous aura besoin de changer (appel réseau au lieu du générateur
+/// local).
 class _AiChatSheet extends StatefulWidget {
   const _AiChatSheet();
 
@@ -45,20 +41,14 @@ class _AiChatSheet extends StatefulWidget {
 class _AiChatSheetState extends State<_AiChatSheet> {
   final _saisieCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final List<_MessageIa> _messages = [];
+  final List<MessageIa> _messages = [];
   bool _enTrainDecrire = false;
 
   @override
   void initState() {
     super.initState();
     _messages.add(
-      _MessageIa(
-        texte:
-            'Bonjour ! Je suis ${EnvConfig.aiAssistantName}, l\'assistant de SPAD. '
-            'Pose-moi une question sur ton planning, un rapport, ou le fonctionnement de l\'appli.',
-        deMoi: false,
-        heure: DateTime.now(),
-      ),
+      MessageIa(texte: messageAccueilIa(EnvConfig.aiAssistantName), deMoi: false, heure: DateTime.now()),
     );
   }
 
@@ -84,7 +74,7 @@ class _AiChatSheetState extends State<_AiChatSheet> {
     final texte = _saisieCtrl.text.trim();
     if (texte.isEmpty || _enTrainDecrire) return;
     setState(() {
-      _messages.add(_MessageIa(texte: texte, deMoi: true, heure: DateTime.now()));
+      _messages.add(MessageIa(texte: texte, deMoi: true, heure: DateTime.now()));
       _enTrainDecrire = true;
     });
     _saisieCtrl.clear();
@@ -95,30 +85,10 @@ class _AiChatSheetState extends State<_AiChatSheet> {
     await Future.delayed(Duration(milliseconds: 500 + Random().nextInt(500)));
     if (!mounted) return;
     setState(() {
-      _messages.add(_MessageIa(texte: _reponseSimulee(texte), deMoi: false, heure: DateTime.now()));
+      _messages.add(MessageIa(texte: reponseSimulee(texte), deMoi: false, heure: DateTime.now()));
       _enTrainDecrire = false;
     });
     _scrollerEnBas();
-  }
-
-  String _reponseSimulee(String question) {
-    final q = question.toLowerCase();
-    if (q.contains('check-in') || q.contains('checkin') || q.contains('présence')) {
-      return 'Le check-in se fait une seule fois par jour, dès ton arrivée, depuis l\'onglet "Check-in". '
-          'Une fois fait, le bouton se désactive et tu peux voir l\'heure enregistrée dans le récapitulatif du jour.';
-    }
-    if (q.contains('rapport')) {
-      return 'Tu peux rédiger un rapport journalier depuis l\'onglet "Mon patient" (bouton "Nouveau rapport"). '
-          'Le check-in du jour doit être fait avant, sinon le serveur refuse l\'envoi.';
-    }
-    if (q.contains('patient')) {
-      return 'Les informations de ton patient (coordonnées, pathologie, antécédents, contact d\'urgence) sont dans l\'onglet "Mon patient".';
-    }
-    if (q.contains('message') || q.contains('contact') || q.contains('coordonnateur') || q.contains('médecin') || q.contains('medecin')) {
-      return 'Depuis l\'onglet "Messages", tu peux écrire à ton patient, à l\'équipe des coordonnateurs, aux médecins ou aux administrateurs.';
-    }
-    return 'Je note ta question — mes réponses sont simulées pour le moment, un vrai assistant IA sera branché prochainement. '
-        'En attendant, n\'hésite pas à contacter ton coordonnateur depuis l\'onglet Messages pour tout besoin urgent.';
   }
 
   @override
@@ -196,7 +166,7 @@ class _EnTeteIa extends StatelessWidget {
 }
 
 class _BulleMessageIa extends StatelessWidget {
-  final _MessageIa message;
+  final MessageIa message;
 
   const _BulleMessageIa({required this.message});
 

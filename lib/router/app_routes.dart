@@ -36,6 +36,11 @@ abstract class AppRoutes {
   static String avsPatientDetail(String id) => '/avs/patient/$id';
   static const avsMessagerieConversationPattern = '/avs/messages/:id';
   static String avsMessagerieConversation(String id) => '/avs/messages/$id';
+  // Fil épinglé de l'assistant IA en page complète (voir
+  // `AvsIaConversationPage`) — distinct du pattern `:id` ci-dessus car ce
+  // n'est pas une vraie conversation `/api/conversations`, juste un chat
+  // local simulé en attendant un backend IA (voir `BACKEND-TODO.md`).
+  static const avsMessagerieIa = '/avs/messages/assistant-ia';
 
   // --- Médecin (rôle en étude) : Patients / Prescriptions / Messagerie (3 onglets) ---
   static const medecinDashboard = '/medecin';
@@ -83,17 +88,40 @@ abstract class AppRoutes {
   static const coordonnateurCheckinDetailPattern = '/coordonnateur/checkins/:id';
   static String coordonnateurCheckinDetail(String id) => '/coordonnateur/checkins/$id';
 
-  // --- Administrateur : Tableau de bord / Utilisateurs / Paiements / Statistiques / Messagerie (5 onglets) ---
+  // --- Administrateur : Tableau de bord / Ressources / Statistiques /
+  // Messagerie (4 onglets) ---
+  //
+  // "Ressources" (anciennement "Utilisateurs & Souscriptions") réunit trois
+  // sous-onglets : Utilisateurs, Souscriptions, Soins (catalogue) — voir
+  // `AdministrateurUtilisateursPage`. Le résumé chiffré des souscriptions et
+  // paiements reste par ailleurs visible dans l'onglet "Statistiques".
   static const administrateurDashboard = '/administrateur';
   static const administrateurAccueil = '/administrateur/accueil';
   static const administrateurUtilisateurs = '/administrateur/utilisateurs';
-  static const administrateurPaiements = '/administrateur/paiements';
   static const administrateurStatistiques = '/administrateur/statistiques';
   static const administrateurMessagerie = '/administrateur/messagerie';
   static const administrateurProfil = '/administrateur/profil';
   static const administrateurNouvelUtilisateur = '/administrateur/utilisateurs/nouveau';
   static const administrateurUtilisateurDetailPattern = '/administrateur/utilisateurs/:id';
   static String administrateurUtilisateurDetail(String id) => '/administrateur/utilisateurs/$id';
-  // Fil de messagerie "Administration" (context.push, sans bottom navigation).
-  static const administrateurMessagerieAdministrationPattern = '/administrateur/messagerie/administration';
+  static const administrateurUtilisateurModifierPattern = '/administrateur/utilisateurs/:id/modifier';
+  static String administrateurUtilisateurModifier(String id) => '/administrateur/utilisateurs/$id/modifier';
+
+  // --- Administrateur : catalogue de soins SPAD (onglet "Ressources") ---
+  static const administrateurNouveauSoin = '/administrateur/soins/nouveau';
+  static const administrateurSoinModifierPattern = '/administrateur/soins/:id/modifier';
+  static String administrateurSoinModifier(String id) => '/administrateur/soins/$id/modifier';
+
+  // --- Administrateur : détail/édition d'une souscription (onglet
+  // "Ressources") ---
+  static const administrateurSouscriptionDetailPattern = '/administrateur/souscriptions/:id';
+  static String administrateurSouscriptionDetail(String id) => '/administrateur/souscriptions/$id';
+  // Messagerie admin, même pattern que AVS/Coordonnateur : fil épinglé
+  // assistant IA (chemin statique, DOIT être enregistré avant le pattern
+  // `:id` dynamique côté router) + vraies conversations `/api/conversations`.
+  // L'admin peut contacter tout le monde (AVS, médecins, coordonnateurs,
+  // patients/familles) — voir `AdministrateurMessageriePage`.
+  static const administrateurMessagerieIa = '/administrateur/messagerie/assistant-ia';
+  static const administrateurMessagerieConversationPattern = '/administrateur/messagerie/:id';
+  static String administrateurMessagerieConversation(String id) => '/administrateur/messagerie/$id';
 }

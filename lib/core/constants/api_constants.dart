@@ -70,12 +70,20 @@ class ApiConstants {
   static String utilisateursParRole(String role) => '/utilisateurs/role/$role';
   static const String paiements = '/paiements';
   static const String souscriptions = '/souscriptions';
+  // Catalogue de soins SPAD (soins_catalogue) — CRUD + média, onglet
+  // "Ressources" > "Soins" de l'administrateur.
+  static const String soins = '/soins';
+  static String soinMedia(String id) => '/soins/$id/media';
+  static String soinStatut(String id) => '/soins/$id/statut';
   // Le backend monte statsRoutes.js sur `/api/stats` (voir app.js), pas
   // `/api/statistiques` — ces deux constantes pointaient vers une route
   // inexistante avant correction.
   static const String statistiquesOperationnelles = '/stats/operationnel';
   static const String statistiquesPaiements = '/stats/paiements';
   static const String statistiquesExportPdf = '/stats/export/pdf';
+  // Export PDF "Rapport patients" (horaires, retards, synthèse générale) —
+  // voir `TODO-ADMIN-BACKEND.md` côté backend pour le détail de la route.
+  static const String statistiquesExportPatientsPdf = '/stats/export/patients/pdf';
 
   // --- Médecin (rôle en étude) : dossiers, traitements, rendez-vous ---
   static const String traitements = '/traitements';

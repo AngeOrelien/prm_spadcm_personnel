@@ -95,3 +95,55 @@ class PersonnelAnnuaire {
 
   String get nomComplet => '$prenom $nom';
 }
+
+/// Rapport journalier dont l'envoi au serveur a échoué (pas de réseau,
+/// serveur injoignable...) au moment de la saisie. Gardé localement (voir
+/// `RapportsLocauxService`) pour ne jamais perdre le travail de l'AVS :
+/// affiché en tête de "Mes rapports" avec un bouton "Réessayer", l'heure de
+/// création d'origine étant conservée telle quelle (`creeLe`).
+class RapportLocal {
+  final String idLocal;
+  final String patientId;
+  final String patientNom;
+  final DateTime creeLe;
+  final Map<String, dynamic> corps;
+  final String? derniereErreur;
+
+  const RapportLocal({
+    required this.idLocal,
+    required this.patientId,
+    required this.patientNom,
+    required this.creeLe,
+    required this.corps,
+    this.derniereErreur,
+  });
+
+  RapportLocal copierAvec({String? derniereErreur}) {
+    return RapportLocal(
+      idLocal: idLocal,
+      patientId: patientId,
+      patientNom: patientNom,
+      creeLe: creeLe,
+      corps: corps,
+      derniereErreur: derniereErreur ?? this.derniereErreur,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'idLocal': idLocal,
+        'patientId': patientId,
+        'patientNom': patientNom,
+        'creeLe': creeLe.toIso8601String(),
+        'corps': corps,
+        'derniereErreur': derniereErreur,
+      };
+
+  static RapportLocal fromJson(Map<String, dynamic> json) => RapportLocal(
+        idLocal: json['idLocal']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        patientId: json['patientId']?.toString() ?? '',
+        patientNom: json['patientNom']?.toString() ?? '',
+        creeLe: DateTime.tryParse(json['creeLe']?.toString() ?? '') ?? DateTime.now(),
+        corps: Map<String, dynamic>.from(json['corps'] as Map),
+        derniereErreur: json['derniereErreur']?.toString(),
+      );
+}

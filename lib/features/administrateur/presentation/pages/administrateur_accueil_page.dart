@@ -113,7 +113,7 @@ class AdministrateurAccueilPage extends ConsumerWidget {
                             ),
                           ),
                           TextButton(
-                            onPressed: () => context.go(AppRoutes.administrateurPaiements),
+                            onPressed: () => context.go(AppRoutes.administrateurUtilisateurs),
                             child: const Text('Voir'),
                           ),
                         ],
@@ -123,7 +123,7 @@ class AdministrateurAccueilPage extends ConsumerWidget {
                   SectionTitle(
                     titre: 'Derniers paiements',
                     trailing: TextButton(
-                      onPressed: () => context.go(AppRoutes.administrateurPaiements),
+                      onPressed: () => context.go(AppRoutes.administrateurUtilisateurs),
                       child: const Text('Tout voir'),
                     ),
                   ),

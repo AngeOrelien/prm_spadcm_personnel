@@ -3,36 +3,61 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimens.dart';
-import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
-import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
-import '../../../coordonnateur/presentation/widgets/coordonnateur_widgets.dart';
-import '../providers/avs_providers.dart';
+import '../../../core/extensions/context_extensions.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../features/coordonnateur/domain/entities/coordonnateur_entities.dart';
+import '../dashboard/dashboard_widgets.dart';
+import '../misc/app_circle_icon_button.dart';
 
-/// Fil de discussion réel de l'AVS, branché sur
-/// `/api/conversations/:id/messages` — même pattern que
-/// `CoordonnateurConversationPage`. [conversationId] est obtenu via
-/// `AvsActions.ouvrirConversationAvec(...)` avant la navigation (voir
-/// `avs_messages_page.dart`).
-class AvsConversationPage extends ConsumerStatefulWidget {
+/// Envoie [contenu] dans la conversation [conversationId] et retourne une
+/// fois le message bien transmis au serveur (pour que la page sache quand
+/// arrêter son indicateur d'envoi).
+typedef EnvoyerMessageMessagerie = Future<void> Function(WidgetRef ref, String conversationId, String contenu);
+
+/// Marque la conversation [conversationId] comme lue (appel "fire and
+/// forget", jamais attendu — voir usage dans `initState`).
+typedef MarquerLuMessagerie = void Function(WidgetRef ref, String conversationId);
+
+/// Fil de discussion réel, branché sur `/api/conversations/:id/messages` —
+/// widget UNIQUE partagé par les 4 rôles de l'app Personnel (Administrateur,
+/// Coordonnateur, Médecin, AVS).
+///
+/// Avant ce fichier, chaque rôle avait sa propre page de conversation
+/// (`AdministrateurConversationPage`, `AvsConversationPage`,
+/// `CoordonnateurConversationPage`), strictement identiques à l'exception du
+/// nom du provider Riverpod appelé — jusqu'à 300 lignes dupliquées 3 fois.
+/// Le Médecin n'avait même pas de vraie page : son fil de discussion pointait
+/// vers `MessagerieStubPage`, un écran de démonstration avec des messages
+/// statiques jamais envoyés au serveur.
+///
+/// Ce widget reçoit le provider de messages et les actions (envoyer un
+/// message, marquer comme lu) en paramètres plutôt que d'appeler un provider
+/// nommé en dur : chaque rôle passe simplement les siens depuis le router
+/// (voir `app_router.dart`), sans dupliquer la présentation.
+class MessagerieConversationPage extends ConsumerStatefulWidget {
   final String conversationId;
   final String interlocuteurNom;
   final String? interlocuteurSousTitre;
+  final FutureProvider<List<MessageConversation>> Function(String conversationId) messagesProvider;
+  final EnvoyerMessageMessagerie envoyerMessage;
+  final MarquerLuMessagerie marquerLu;
 
-  const AvsConversationPage({
+  const MessagerieConversationPage({
     super.key,
     required this.conversationId,
     required this.interlocuteurNom,
     this.interlocuteurSousTitre,
+    required this.messagesProvider,
+    required this.envoyerMessage,
+    required this.marquerLu,
   });
 
   @override
-  ConsumerState<AvsConversationPage> createState() => _AvsConversationPageState();
+  ConsumerState<MessagerieConversationPage> createState() => _MessagerieConversationPageState();
 }
 
-class _AvsConversationPageState extends ConsumerState<AvsConversationPage> {
+class _MessagerieConversationPageState extends ConsumerState<MessagerieConversationPage> {
   final _saisieCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _envoiEnCours = false;
@@ -42,12 +67,12 @@ class _AvsConversationPageState extends ConsumerState<AvsConversationPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(avsActionsProvider).marquerConversationLue(widget.conversationId);
+      widget.marquerLu(ref, widget.conversationId);
     });
-    // Pas de websocket côté backend pour l'instant (voir BACKEND-TODO.md) :
-    // rafraîchissement périodique en attendant du temps réel.
+    // Pas de websocket côté backend pour l'instant : rafraîchissement
+    // périodique en attendant du temps réel (voir README backend).
     _polling = Timer.periodic(const Duration(seconds: 12), (_) {
-      ref.invalidate(avsMessagesProvider(widget.conversationId));
+      ref.invalidate(widget.messagesProvider(widget.conversationId));
     });
   }
 
@@ -65,7 +90,7 @@ class _AvsConversationPageState extends ConsumerState<AvsConversationPage> {
     setState(() => _envoiEnCours = true);
     _saisieCtrl.clear();
     try {
-      await ref.read(avsActionsProvider).envoyerMessage(widget.conversationId, texte);
+      await widget.envoyerMessage(ref, widget.conversationId, texte);
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_scrollCtrl.hasClients) return;
@@ -86,7 +111,7 @@ class _AvsConversationPageState extends ConsumerState<AvsConversationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(avsMessagesProvider(widget.conversationId));
+    final messagesAsync = ref.watch(widget.messagesProvider(widget.conversationId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -124,7 +149,8 @@ class _AvsConversationPageState extends ConsumerState<AvsConversationPage> {
           Expanded(
             child: messagesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, st) => _ErreurMessages(onReessayer: () => ref.invalidate(avsMessagesProvider(widget.conversationId))),
+              error: (err, st) =>
+                  _ErreurMessages(onReessayer: () => ref.invalidate(widget.messagesProvider(widget.conversationId))),
               data: (messages) {
                 if (messages.isEmpty) {
                   return Center(
@@ -137,7 +163,7 @@ class _AvsConversationPageState extends ConsumerState<AvsConversationPage> {
                   }
                 });
                 return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(avsMessagesProvider(widget.conversationId)),
+                  onRefresh: () async => ref.invalidate(widget.messagesProvider(widget.conversationId)),
                   child: ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),

@@ -117,7 +117,7 @@ final Map<RolePersonnel, RoleDashboardConfig> roleDashboards = {
         pageBuilder: _avsCheckin,
       ),
       DashboardTab(
-        label: 'Messages',
+        label: 'Messagerie',
         icon: Icons.forum_outlined,
         selectedIcon: Icons.forum,
         path: AppRoutes.avsMessages,

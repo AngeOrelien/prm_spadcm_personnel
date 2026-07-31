@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../avs/domain/entities/avs_entities.dart';
 import '../../data/datasources/coordonnateur_remote_datasource.dart';
 import '../../data/models/coordonnateur_models.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
@@ -106,6 +107,13 @@ final conversationsListProvider = FutureProvider.autoDispose<List<Conversation>>
 final messagesProvider = FutureProvider.autoDispose.family<List<MessageConversation>, String>((ref, conversationId) {
   final currentUserId = ref.watch(_currentUserIdProvider);
   return ref.watch(coordonnateurRemoteDataSourceProvider).listerMessages(conversationId, currentUserId);
+});
+
+/// Annuaire par rôle (médecins / administrateurs / autres coordonnateurs),
+/// pour la messagerie coordonnateur — le coordonnateur peut contacter tout
+/// le monde, comme l'administrateur et le médecin.
+final personnelAnnuaireProvider = FutureProvider.autoDispose.family<List<PersonnelAnnuaire>, String>((ref, role) {
+  return ref.watch(coordonnateurRemoteDataSourceProvider).listerPersonnelParRole(role);
 });
 
 /// Vue d'ensemble des présences/check-in du jour (onglet Check-in).

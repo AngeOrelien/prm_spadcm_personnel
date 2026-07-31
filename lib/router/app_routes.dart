@@ -37,9 +37,10 @@ abstract class AppRoutes {
   static const avsMessagerieConversationPattern = '/avs/messages/:id';
   static String avsMessagerieConversation(String id) => '/avs/messages/$id';
   // Fil épinglé de l'assistant IA en page complète (voir
-  // `AvsIaConversationPage`) — distinct du pattern `:id` ci-dessus car ce
-  // n'est pas une vraie conversation `/api/conversations`, juste un chat
-  // local simulé en attendant un backend IA (voir `BACKEND-TODO.md`).
+  // `shared/widgets/ai/ia_conversation_page.dart`) — distinct du pattern
+  // `:id` ci-dessus car ce n'est pas une vraie conversation
+  // `/api/conversations`, juste un chat local simulé en attendant un vrai
+  // branchement sur `POST /api/assistant/chat` (voir `assistantController.js`).
   static const avsMessagerieIa = '/avs/messages/assistant-ia';
 
   // --- Médecin (rôle en étude) : Patients / Prescriptions / Messagerie (3 onglets) ---
@@ -55,6 +56,12 @@ abstract class AppRoutes {
   static const medecinNouvellePrescription = '/medecin/prescriptions/nouvelle';
   static const medecinMessagerieConversationPattern = '/medecin/messagerie/:id';
   static String medecinMessagerieConversation(String id) => '/medecin/messagerie/$id';
+  // Fil épinglé de l'assistant IA en page complète (voir
+  // `shared/widgets/ai/ia_conversation_page.dart`) — distinct du pattern
+  // `:id` ci-dessus car ce n'est pas une vraie conversation
+  // `/api/conversations`, juste un chat local simulé en attendant un vrai
+  // branchement sur `POST /api/assistant/chat` (voir `assistantController.js`).
+  static const medecinMessagerieIa = '/medecin/messagerie/assistant-ia';
 
   // --- Coordonnateur : Accueil / Patients / Équipe / Rapports / Messagerie (5 onglets) ---
   static const coordonnateurDashboard = '/coordonnateur';
@@ -79,6 +86,12 @@ abstract class AppRoutes {
   static String coordonnateurPatientDetail(String id) => '/coordonnateur/patients/$id';
   static String coordonnateurAvsDetail(String id) => '/coordonnateur/equipe/$id';
   static String coordonnateurMessagerieConversation(String id) => '/coordonnateur/messagerie/$id';
+  // Fil épinglé de l'assistant IA en page complète (voir
+  // `shared/widgets/ai/ia_conversation_page.dart`) — distinct du pattern
+  // `:id` ci-dessus car ce n'est pas une vraie conversation
+  // `/api/conversations`, juste un chat local simulé en attendant un vrai
+  // branchement sur `POST /api/assistant/chat` (voir `assistantController.js`).
+  static const coordonnateurMessagerieIa = '/coordonnateur/messagerie/assistant-ia';
 
   // Détail plein écran d'un rapport AVS (au lieu du bottom sheet précédent)
   // et d'une présence/check-in — voir `coordonnateur_rapports_page.dart` /

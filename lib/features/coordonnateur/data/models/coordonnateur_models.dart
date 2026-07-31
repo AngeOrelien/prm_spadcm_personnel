@@ -74,6 +74,7 @@ class PatientModel {
       avsAssigneNom: avsAssigne != null ? _nomCompletDepuis(avsAssigne) : null,
       photoUrl: json['photoUrl'],
       email: json['email'],
+      compteUtilisateurId: json['compteUtilisateurId'] != null ? _idDe(json['compteUtilisateurId']) : null,
     );
   }
 

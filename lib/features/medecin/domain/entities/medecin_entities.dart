@@ -8,6 +8,11 @@ class DossierMedicalPatient {
   final int age;
   final String pathologiePrincipale;
   final DateTime? derniereConsultation;
+  // Id du compte de connexion (`Utilisateur`, rôle `patient`) lié à cette
+  // fiche — voir le commentaire équivalent sur `Patient.compteUtilisateurId`
+  // (`coordonnateur_entities.dart`) : nécessaire pour ouvrir une vraie
+  // conversation avec ce patient, `null` si aucun compte n'y est encore lié.
+  final String? compteUtilisateurId;
 
   const DossierMedicalPatient({
     required this.id,
@@ -15,6 +20,7 @@ class DossierMedicalPatient {
     required this.age,
     required this.pathologiePrincipale,
     this.derniereConsultation,
+    this.compteUtilisateurId,
   });
 }
 

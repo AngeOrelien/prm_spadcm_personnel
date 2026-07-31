@@ -44,11 +44,20 @@ class AvsRapportFormPage extends ConsumerStatefulWidget {
 }
 
 class _MesureVitale {
+  // Obligatoire côté backend (`RapportJournalier.parametresVitaux[].moment`,
+  // enum ['matin', 'soir'], `required: true`) — son absence ici est la cause
+  // du 500 renvoyé par le serveur dès qu'un AVS renseignait une constante
+  // (erreur de validation Mongoose, jamais remontée proprement avant la
+  // correction de `errorMiddleware.js`). Premier relevé par défaut "matin",
+  // les suivants "soir", modifiable via le sélecteur du formulaire.
+  String moment;
   final temperature = TextEditingController();
   final tension = TextEditingController();
   final pouls = TextEditingController();
   final saturation = TextEditingController();
   final notes = TextEditingController();
+
+  _MesureVitale({this.moment = 'matin'});
 
   bool get estVide =>
       temperature.text.trim().isEmpty &&
@@ -57,12 +66,17 @@ class _MesureVitale {
       saturation.text.trim().isEmpty &&
       notes.text.trim().isEmpty;
 
+  // Noms de champs alignés sur `parametresVitauxSchema` (backend) : avant ce
+  // correctif, `tensionArterielle`/`saturationOxygene` ne correspondaient à
+  // aucun champ du schéma et étaient silencieusement ignorés par Mongoose
+  // (perte de données, sans erreur) — voir `taBrasDroit`/`spo2` ci-dessous.
   Map<String, dynamic> toJson() => {
+        'moment': moment,
         if (temperature.text.trim().isNotEmpty) 'temperature': temperature.text.trim(),
-        if (tension.text.trim().isNotEmpty) 'tensionArterielle': tension.text.trim(),
+        if (tension.text.trim().isNotEmpty) 'taBrasDroit': tension.text.trim(),
         if (pouls.text.trim().isNotEmpty) 'pouls': pouls.text.trim(),
-        if (saturation.text.trim().isNotEmpty) 'saturationOxygene': saturation.text.trim(),
-        if (notes.text.trim().isNotEmpty) 'observations': notes.text.trim(),
+        if (saturation.text.trim().isNotEmpty) 'spo2': saturation.text.trim(),
+        if (notes.text.trim().isNotEmpty) 'notes': notes.text.trim(),
       };
 
   void dispose() {
@@ -477,6 +491,14 @@ class _EtapeConstantes extends StatelessWidget {
             },
             child: Column(
               children: [
+                _SelecteurMoment(
+                  valeur: mesures[i].moment,
+                  onChanged: (v) {
+                    mesures[i].moment = v;
+                    onChanged();
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
                     Expanded(child: _MiniChamp(label: 'Température (°C)', controller: mesures[i].temperature)),
@@ -499,13 +521,34 @@ class _EtapeConstantes extends StatelessWidget {
           ),
         OutlinedButton.icon(
           onPressed: () {
-            mesures.add(_MesureVitale());
+            mesures.add(_MesureVitale(moment: mesures.length.isEven ? 'matin' : 'soir'));
             onChanged();
           },
           icon: const Icon(Icons.add),
           label: const Text('Ajouter un relevé'),
         ),
       ],
+    );
+  }
+}
+
+class _SelecteurMoment extends StatelessWidget {
+  final String valeur;
+  final ValueChanged<String> onChanged;
+
+  const _SelecteurMoment({required this.valeur, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: 'matin', label: Text('Matin'), icon: Icon(Icons.wb_sunny_outlined, size: 16)),
+        ButtonSegment(value: 'soir', label: Text('Soir'), icon: Icon(Icons.nightlight_outlined, size: 16)),
+      ],
+      selected: {valeur},
+      onSelectionChanged: (nouvelle) => onChanged(nouvelle.first),
+      showSelectedIcon: false,
+      style: const ButtonStyle(visualDensity: VisualDensity.compact),
     );
   }
 }
@@ -683,6 +726,7 @@ class _EtapeApercu extends StatelessWidget {
               ? 'Aucune constante renseignée.'
               : mesuresRemplies
                   .map((m) => [
+                        m.moment == 'matin' ? 'Matin' : 'Soir',
                         if (m.temperature.text.trim().isNotEmpty) 'Température ${m.temperature.text.trim()}°C',
                         if (m.tension.text.trim().isNotEmpty) 'Tension ${m.tension.text.trim()}',
                         if (m.pouls.text.trim().isNotEmpty) 'Pouls ${m.pouls.text.trim()}',

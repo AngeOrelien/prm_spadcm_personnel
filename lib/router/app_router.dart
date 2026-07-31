@@ -2,37 +2,37 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/administrateur/presentation/pages/administrateur_conversation_page.dart';
-import '../features/administrateur/presentation/pages/administrateur_ia_conversation_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_nouvel_utilisateur_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_soin_form_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_souscription_detail_page.dart';
 import '../features/administrateur/presentation/pages/administrateur_utilisateur_modifier_page.dart';
+import '../features/administrateur/presentation/providers/administrateur_providers.dart';
 import '../features/administrateur/domain/entities/administrateur_entities.dart';
 import '../features/auth/presentation/pages/login_email_page.dart';
 import '../features/auth/presentation/pages/otp_verification_page.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
-import '../features/avs/presentation/pages/avs_conversation_page.dart';
-import '../features/avs/presentation/pages/avs_ia_conversation_page.dart';
 import '../features/avs/presentation/pages/avs_patient_detail_page.dart';
 import '../features/avs/presentation/pages/avs_profil_page.dart';
 import '../features/avs/presentation/pages/avs_rapport_form_page.dart';
 import '../features/avs/presentation/pages/avs_rapports_page.dart';
+import '../features/avs/presentation/providers/avs_providers.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_affectations_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_avs_form_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_checkin_detail_page.dart';
-import '../features/coordonnateur/presentation/pages/coordonnateur_conversation_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_patient_detail_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_patient_form_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_profil_page.dart';
 import '../features/coordonnateur/presentation/pages/coordonnateur_rapport_detail_page.dart';
+import '../features/coordonnateur/presentation/providers/coordonnateur_providers.dart';
 import '../features/dashboard/presentation/pages/dashboard_tab_placeholder.dart';
 import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
 import '../features/medecin/presentation/pages/medecin_patient_detail_page.dart';
 import '../features/medecin/presentation/pages/medecin_prescription_form_page.dart';
+import '../features/medecin/presentation/providers/medecin_providers.dart';
 import '../screens/splash_screen.dart';
-import '../shared/widgets/pages/messagerie_stub_page.dart';
+import '../shared/widgets/ai/ia_conversation_page.dart';
+import '../shared/widgets/messagerie/messagerie_conversation_page.dart';
 import 'app_routes.dart';
 import 'role_dashboards.dart';
 
@@ -171,7 +171,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // prioritaire. ---
       GoRoute(
         path: AppRoutes.avsMessagerieIa,
-        builder: (context, state) => const AvsIaConversationPage(),
+        builder: (context, state) => const IaConversationPage(),
       ),
       // --- AVS : fil de messagerie réel (patient, coordonnateurs, médecins,
       // administrateurs), branché sur `/api/conversations` — voir
@@ -182,10 +182,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.avsMessagerieConversationPattern,
         builder: (context, state) {
-          return AvsConversationPage(
+          return MessagerieConversationPage(
             conversationId: _conversationId(state),
             interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
             interlocuteurSousTitre: _sousTitreInterlocuteur(state),
+            messagesProvider: avsMessagesProvider,
+            envoyerMessage: (ref, id, texte) => ref.read(avsActionsProvider).envoyerMessage(id, texte),
+            marquerLu: (ref, id) => ref.read(avsActionsProvider).marquerConversationLue(id),
           );
         },
       ),
@@ -222,6 +225,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.coordonnateurAvsDetailPattern,
         builder: (context, state) => CoordonnateurAvsDetailPage(avsId: state.pathParameters['id']!),
       ),
+      // --- Coordonnateur : fil épinglé assistant IA (chemin statique, DOIT
+      // être enregistré avant le pattern `:id` dynamique juste après) —
+      // voir `CoordonnateurMessageriePage`. ---
+      GoRoute(
+        path: AppRoutes.coordonnateurMessagerieIa,
+        builder: (context, state) => const IaConversationPage(),
+      ),
       // --- Coordonnateur : fil de messagerie réel (AVS de l'équipe ou
       // patient/famille), branché sur `/api/conversations` — voir
       // `CoordonnateurMessageriePage`, `CoordonnateurAvsDetailPage` et
@@ -231,10 +241,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.coordonnateurMessagerieConversationPattern,
         builder: (context, state) {
-          return CoordonnateurConversationPage(
+          return MessagerieConversationPage(
             conversationId: _conversationId(state),
             interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
             interlocuteurSousTitre: _sousTitreInterlocuteur(state),
+            messagesProvider: messagesProvider,
+            envoyerMessage: (ref, id, texte) => ref.read(coordonnateurActionsProvider).envoyerMessage(id, texte),
+            marquerLu: (ref, id) => ref.read(coordonnateurActionsProvider).marquerConversationLue(id),
           );
         },
       ),
@@ -263,12 +276,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.medecinNouvellePrescription,
         builder: (context, state) => const MedecinPrescriptionFormPage(),
       ),
+      // --- Médecin : fil épinglé assistant IA (chemin statique, DOIT être
+      // enregistré avant le pattern `:id` dynamique juste après) — voir
+      // `MedecinMessageriePage`. ---
+      GoRoute(
+        path: AppRoutes.medecinMessagerieIa,
+        builder: (context, state) => const IaConversationPage(),
+      ),
       GoRoute(
         path: AppRoutes.medecinMessagerieConversationPattern,
         builder: (context, state) {
-          return MessagerieStubPage(
-            interlocuteurNom: _nomInterlocuteur(state, 'Patient'),
-            interlocuteurSousTitre: _sousTitreInterlocuteur(state, 'Patient'),
+          return MessagerieConversationPage(
+            conversationId: _conversationId(state),
+            interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
+            interlocuteurSousTitre: _sousTitreInterlocuteur(state),
+            messagesProvider: medecinMessagesProvider,
+            envoyerMessage: (ref, id, texte) => ref.read(medecinActionsProvider).envoyerMessage(id, texte),
+            marquerLu: (ref, id) => ref.read(medecinActionsProvider).marquerConversationLue(id),
           );
         },
       ),
@@ -311,7 +335,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // dynamique ci-dessous pour que ce chemin statique soit prioritaire. ---
       GoRoute(
         path: AppRoutes.administrateurMessagerieIa,
-        builder: (context, state) => const AdministrateurIaConversationPage(),
+        builder: (context, state) => const IaConversationPage(),
       ),
       // --- Administrateur : fil de messagerie réel (AVS, médecins,
       // coordonnateurs, patients/familles), branché sur `/api/conversations`
@@ -321,10 +345,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.administrateurMessagerieConversationPattern,
         builder: (context, state) {
-          return AdministrateurConversationPage(
+          return MessagerieConversationPage(
             conversationId: _conversationId(state),
             interlocuteurNom: _nomInterlocuteur(state, 'Conversation'),
             interlocuteurSousTitre: _sousTitreInterlocuteur(state),
+            messagesProvider: administrateurMessagesProvider,
+            envoyerMessage: (ref, id, texte) => ref.read(administrateurActionsProvider).envoyerMessage(id, texte),
+            marquerLu: (ref, id) => ref.read(administrateurActionsProvider).marquerConversationLue(id),
           );
         },
       ),

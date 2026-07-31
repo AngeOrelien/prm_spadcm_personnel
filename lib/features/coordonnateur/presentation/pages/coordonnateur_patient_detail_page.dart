@@ -57,13 +57,14 @@ class _ContenuState extends ConsumerState<_Contenu> {
     if (_ouvertureConversationEnCours) return;
     final patient = widget.patient;
     setState(() => _ouvertureConversationEnCours = true);
+    final compteId = patient.compteUtilisateurId;
+    if (compteId == null) return; // bouton désactivé dans ce cas, voir build() ci-dessous
     try {
-      // Le contact "patient" côté messagerie est en réalité le compte
-      // utilisateur lié au patient (`compteUtilisateurId`) — le backend
-      // devra l'exposer pour que ce bouton fonctionne de bout en bout, voir
-      // BACKEND_TODO.md. On tente `patient.id` en attendant.
+      // Le contact "patient" côté messagerie est le compte utilisateur lié
+      // au patient (`compteUtilisateurId`), pas l'id de la fiche patient
+      // elle-même — voir `Patient.compteUtilisateurId`.
       final conversation = await ref.read(coordonnateurActionsProvider).ouvrirConversationAvec(
-            patient.id,
+            compteId,
             patientContexteId: patient.id,
           );
       if (!mounted) return;
@@ -146,11 +147,11 @@ class _ContenuState extends ConsumerState<_Contenu> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: _ouvertureConversationEnCours ? null : _discuter,
+                onPressed: (_ouvertureConversationEnCours || patient.compteUtilisateurId == null) ? null : _discuter,
                 icon: _ouvertureConversationEnCours
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.chat_bubble_outline),
-                label: const Text('Discuter avec ce patient'),
+                label: Text(patient.compteUtilisateurId == null ? 'Pas de compte de connexion' : 'Discuter avec ce patient'),
               ),
             ),
           ),

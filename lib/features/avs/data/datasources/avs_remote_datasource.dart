@@ -195,21 +195,19 @@ class AvsRemoteDataSource {
     }
   }
 
-  // --- Annuaire (coordonnateurs / médecins / administrateurs) ---
-  //
-  // ⚠️ `GET /utilisateurs/role/:role` est réservé à coordonnateur/
-  // administrateur côté backend actuel (voir `utilisateurRoutes.js`) — un
-  // AVS y reçoit un 403. On l'appelle quand même (le jour où le backend
-  // ouvrira la route, ça marchera sans rien changer côté app — voir
-  // `BACKEND-TODO.md`) mais on absorbe l'échec en liste vide plutôt que de
-  // casser tout l'onglet Messages pour un groupe d'interlocuteurs.
+  // --- Annuaire collègues (coordonnateurs / médecins / administrateurs)
+  // pour la messagerie AVS : `GET /utilisateurs/role/:role` est désormais
+  // ouvert au rôle AVS côté backend, mais restreint aux 3 rôles ci-dessus
+  // (voir `utilisateurController.listerUtilisateursParRole`) — l'AVS
+  // communique par ailleurs avec le(s) patient(s) qui lui sont affectés via
+  // `mesPatients()` ci-dessus, un endpoint distinct et déjà auto-filtré.
   Future<List<PersonnelAnnuaire>> listerPersonnelParRole(String role) async {
     try {
       final response = await _apiClient.dio.get(ApiConstants.utilisateursParRole(role));
       final data = (response.data['utilisateurs'] ?? response.data['data'] ?? const []) as List;
       return data.map((json) => PersonnelAnnuaireModel.fromJson(json as Map<String, dynamic>)).toList();
-    } on DioException {
-      return const [];
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
     }
   }
 }

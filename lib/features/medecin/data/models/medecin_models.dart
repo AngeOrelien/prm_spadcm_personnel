@@ -8,8 +8,19 @@ class DossierMedicalPatientModel {
       age: json['age'] ?? 0,
       pathologiePrincipale: json['pathologiePrincipale']?.toString() ?? 'Non renseignée',
       derniereConsultation: json['derniereConsultation'] != null ? DateTime.tryParse(json['derniereConsultation'].toString()) : null,
+      compteUtilisateurId: _idCompteDepuis(json['compteUtilisateurId']),
     );
   }
+}
+
+/// Extrait l'id d'un `compteUtilisateurId` qui peut arriver brut (string) ou
+/// peuplé (`{ _id, nom, prenom, ... }` selon l'endpoint) — même logique que
+/// `_idDe` dans `coordonnateur_models.dart`, dupliquée ici pour ne pas créer
+/// de dépendance croisée entre features pour un simple helper.
+String? _idCompteDepuis(dynamic valeur) {
+  if (valeur == null) return null;
+  if (valeur is Map) return valeur['_id']?.toString();
+  return valeur.toString();
 }
 
 class TraitementModel {

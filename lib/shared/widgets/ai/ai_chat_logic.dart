@@ -2,14 +2,15 @@
 /// d'entrée du chat IA de SPAD :
 ///  - le bouton flottant global (`ai_floating_button.dart` -> `ouvrirChatIa`,
 ///    feuille modale) ;
-///  - le fil épinglé de l'onglet Messages de l'AVS, qui s'ouvre maintenant
-///    en page complète façon conversation (`avs_ia_conversation_page.dart`)
-///    plutôt qu'en feuille modale, pour une expérience alignée sur les
-///    autres fils de discussion (patient, coordonnateur...).
+///  - le fil épinglé de l'onglet Messagerie, commun aux 4 rôles de l'app
+///    Personnel, qui s'ouvre en page complète façon conversation (voir
+///    `shared/widgets/ai/ia_conversation_page.dart`) plutôt qu'en feuille
+///    modale, pour une expérience alignée sur les autres fils de discussion.
 ///
-/// ⚠️ Pas encore de backend IA (voir `BACKEND-TODO.md`) : les réponses sont
-/// simulées ici (délai + réponse générique/à mots-clés). Le jour où un vrai
-/// endpoint existe, seul [reponseSimulee] (et le petit délai autour de son
+/// ⚠️ Un vrai backend IA existe désormais (`POST /api/assistant/chat`, voir
+/// `assistantController.js`), mais l'app continue pour l'instant à simuler
+/// les réponses ici (délai + réponse générique/à mots-clés) : le jour où on
+/// la branche dessus, seul [reponseSimulee] (et le petit délai autour de son
 /// appel) aura besoin d'être remplacé par un appel réseau — le reste de
 /// l'UI (bulles, saisie, défilement) ne change pas.
 library;

@@ -105,9 +105,11 @@ final avsMessagesProvider = FutureProvider.autoDispose.family<List<MessageConver
   return ref.watch(avsRemoteDataSourceProvider).listerMessages(conversationId, id);
 });
 
-/// Annuaire par rôle (coordonnateurs / médecins / administrateurs), pour la
-/// messagerie AVS. Repli silencieux sur liste vide tant que le backend ne
-/// permet pas à un AVS d'appeler cette route — voir `BACKEND-TODO.md`.
+/// Annuaire par rôle (`coordonnateur`, `medecin`, `administrateur`) pour la
+/// messagerie AVS — l'AVS peut contacter l'administration en plus de
+/// son/ses patient(s) affecté(s) (voir `mesPatientsProvider`), mais pas les
+/// autres AVS ni le roster patients complet (route restreinte côté backend,
+/// voir `AvsRemoteDataSource.listerPersonnelParRole`).
 final personnelAnnuaireProvider = FutureProvider.autoDispose.family<List<PersonnelAnnuaire>, String>((ref, role) {
   return ref.watch(avsRemoteDataSourceProvider).listerPersonnelParRole(role);
 });

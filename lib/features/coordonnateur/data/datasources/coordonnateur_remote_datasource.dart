@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/services/api_client.dart';
+import '../../../avs/data/models/avs_models.dart';
+import '../../../avs/domain/entities/avs_entities.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
 import '../models/coordonnateur_models.dart';
 
@@ -268,6 +270,20 @@ class CoordonnateurRemoteDataSource {
     try {
       final response = await _apiClient.dio.get(ApiConstants.statistiquesOperationnelles);
       return Map<String, dynamic>.from(response.data['stats'] as Map);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  // --- Annuaire (médecins / administrateurs / autres coordonnateurs), pour
+  // démarrer une conversation depuis l'onglet Messagerie. Le coordonnateur
+  // peut contacter tout le monde (route ouverte côté backend pour son rôle
+  // — voir `utilisateurRoutes.js`). ---
+  Future<List<PersonnelAnnuaire>> listerPersonnelParRole(String role) async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.utilisateursParRole(role));
+      final data = (response.data['utilisateurs'] ?? response.data['data'] ?? const []) as List;
+      return data.map((json) => PersonnelAnnuaireModel.fromJson(json as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
       throw ApiClient.toAppException(e);
     }

@@ -2,34 +2,36 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/config/env_config.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimens.dart';
-import '../../../../shared/widgets/ai/ai_chat_logic.dart';
-import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
+import '../../../core/config/env_config.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../misc/app_circle_icon_button.dart';
+import 'ai_chat_logic.dart';
 
 /// Fil de discussion avec l'assistant IA de SPAD, en page complète — comme
-/// une conversation avec le patient ou un membre de l'équipe (voir
-/// `AvsConversationPage`, dont ce fichier reprend la structure : AppBar
-/// avec avatar + nom, bulles de message, barre de saisie).
+/// une conversation avec un membre de l'équipe ou un patient (même
+/// structure que `MessagerieConversationPage` : AppBar avec avatar + nom,
+/// bulles de message, barre de saisie).
 ///
-/// Ouvert UNIQUEMENT depuis le fil épinglé de l'onglet Messages
-/// (`avs_messages_page.dart`). Le bouton flottant global continue lui
-/// d'ouvrir la feuille modale `ouvrirChatIa` (voir `ai_chat_sheet.dart`) —
-/// les deux partagent la même logique de réponse simulée
-/// (`ai_chat_logic.dart`), seule la présentation diffère.
+/// Mutualisé entre les 4 rôles de l'app Personnel (Administrateur, AVS,
+/// Coordonnateur, Médecin) — avant ce fichier, chaque rôle qui voulait le
+/// fil épinglé IA dupliquait sa propre copie quasi identique (voir
+/// `AvsIaConversationPage` / `AdministrateurIaConversationPage`,
+/// désormais supprimées). Un seul endroit à faire évoluer (ex: brancher le
+/// vrai backend `POST /api/assistant/chat`, voir `assistantController.js`)
+/// profite donc aux 4 onglets Messagerie d'un coup.
 ///
-/// ⚠️ Pas encore de backend IA (voir `BACKEND-TODO.md`) : réponses simulées
-/// en attendant un vrai endpoint de chat. Le jour où il existera, seul
+/// ⚠️ Réponses toujours simulées côté app pour l'instant (voir
+/// `ai_chat_logic.dart`) : le jour où on branche le vrai endpoint IA, seul
 /// `_envoyer()` ci-dessous devra changer.
-class AvsIaConversationPage extends StatefulWidget {
-  const AvsIaConversationPage({super.key});
+class IaConversationPage extends StatefulWidget {
+  const IaConversationPage({super.key});
 
   @override
-  State<AvsIaConversationPage> createState() => _AvsIaConversationPageState();
+  State<IaConversationPage> createState() => _IaConversationPageState();
 }
 
-class _AvsIaConversationPageState extends State<AvsIaConversationPage> {
+class _IaConversationPageState extends State<IaConversationPage> {
   final _saisieCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final List<MessageIa> _messages = [];

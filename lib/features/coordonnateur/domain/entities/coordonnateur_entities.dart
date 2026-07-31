@@ -84,6 +84,14 @@ class Patient {
   final String? avsAssigneNom;
   final String? photoUrl;
   final String? email;
+  // Id du compte de connexion (`Utilisateur`, rôle `patient`) lié à cette
+  // fiche — DIFFÉRENT de [id], qui est l'id de la fiche patient elle-même
+  // (collection `Patient`). Nécessaire pour la messagerie : une conversation
+  // se crée entre comptes `Utilisateur`, jamais avec l'id d'une fiche
+  // patient. `null` si la fiche n'a pas encore de compte associé (voir
+  // `patientController.creerPatient`) — dans ce cas, pas de messagerie
+  // possible avec ce patient.
+  final String? compteUtilisateurId;
 
   const Patient({
     required this.id,
@@ -102,6 +110,7 @@ class Patient {
     this.avsAssigneNom,
     this.photoUrl,
     this.email,
+    this.compteUtilisateurId,
   });
 
   String get nomComplet => '$prenom $nom';

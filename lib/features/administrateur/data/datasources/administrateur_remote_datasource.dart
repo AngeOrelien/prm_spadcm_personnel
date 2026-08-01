@@ -137,6 +137,46 @@ class AdministrateurRemoteDataSource {
     }
   }
 
+  /// Remplace un média existant (nouveau fichier téléversé à la place de
+  /// l'ancien, dont le fichier physique est supprimé côté backend) —
+  /// `PATCH /api/soins/:id/media`. `ancienUrl` est ignoré pour "couverture"
+  /// (champ unique) ; requis pour "galerie"/"video" pour identifier
+  /// l'élément à remplacer dans le tableau.
+  Future<Soin> remplacerMediaSoin(
+    String id,
+    String cheminFichier, {
+    required String role,
+    String? ancienUrl,
+  }) async {
+    try {
+      final nomFichier = cheminFichier.split(Platform.pathSeparator).last;
+      final formData = FormData.fromMap({
+        'role': role,
+        if (ancienUrl != null) 'ancienUrl': ancienUrl,
+        'fichier': await MultipartFile.fromFile(cheminFichier, filename: nomFichier),
+      });
+      final response = await _apiClient.dio.patch(ApiConstants.soinMedia(id), data: formData);
+      return SoinModel.fromJson(response.data['soin'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  /// Supprime un média (référence en base + fichier physique local/R2) —
+  /// `DELETE /api/soins/:id/media`. `url` est requis pour "galerie"/"video",
+  /// ignoré pour "couverture" (voir `soinController.supprimerMediaSoin`).
+  Future<Soin> supprimerMediaSoin(String id, {required String role, String? url}) async {
+    try {
+      final response = await _apiClient.dio.delete(
+        ApiConstants.soinMedia(id),
+        data: {'role': role, if (url != null) 'url': url},
+      );
+      return SoinModel.fromJson(response.data['soin'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
   /// Suppression définitive (`DELETE /api/soins/:id`) — le backend refuse
   /// (409) si des souscriptions existent déjà pour ce soin ; dans ce cas on
   /// relaie le message d'erreur du backend tel quel (voir `ApiException`).

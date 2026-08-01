@@ -52,6 +52,7 @@ dependencies:
   # par l'onglet "Ressources" > "Soins" de l'administrateur pour illustrer le
   # catalogue de soins (image de couverture, galerie, courtes vidéos).
   image_picker: ^1.2.3
+  video_player: ^2.11.1
 
 flutter_launcher_icons:
   image_path: "assets/icons/prmspad_personnel.png"

@@ -119,6 +119,23 @@ class AdministrateurActions {
     return soin;
   }
 
+  Future<Soin> remplacerMediaSoin(
+    String id,
+    String cheminFichier, {
+    required String role,
+    String? ancienUrl,
+  }) async {
+    final soin = await _ds.remplacerMediaSoin(id, cheminFichier, role: role, ancienUrl: ancienUrl);
+    _ref.invalidate(soinsListProvider);
+    return soin;
+  }
+
+  Future<Soin> supprimerMediaSoin(String id, {required String role, String? url}) async {
+    final soin = await _ds.supprimerMediaSoin(id, role: role, url: url);
+    _ref.invalidate(soinsListProvider);
+    return soin;
+  }
+
   Future<void> supprimerSoin(String id) async {
     await _ds.supprimerSoin(id);
     _ref.invalidate(soinsListProvider);

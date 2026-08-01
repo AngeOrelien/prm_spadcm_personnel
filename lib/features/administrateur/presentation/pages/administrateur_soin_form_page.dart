@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -122,6 +123,81 @@ class _AdministrateurSoinFormPageState extends ConsumerState<AdministrateurSoinF
     }
   }
 
+  /// Remplace un média déjà présent (couverture, image de galerie ou vidéo)
+  /// par un nouveau fichier choisi dans la galerie de l'appareil. `ancienUrl`
+  /// est `null` pour la couverture (champ unique, pas besoin d'identifier
+  /// l'élément côté backend).
+  Future<void> _choisirEtRemplacer(String role, String? ancienUrl) async {
+    if (_soinActuel == null) return;
+    final picker = ImagePicker();
+    final XFile? fichier = role == 'video'
+        ? await picker.pickVideo(source: ImageSource.gallery)
+        : await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (fichier == null) return;
+
+    final confirme = await ConfirmActionDialog.show(
+      context,
+      titre: 'Remplacer ce média ?',
+      message:
+          'Le fichier actuel sera définitivement supprimé (base et stockage) et remplacé par le nouveau fichier choisi.',
+      libelleConfirmer: 'Remplacer',
+      destructif: true,
+      icone: Icons.published_with_changes_outlined,
+    );
+    if (confirme != true) return;
+
+    setState(() => _televersementEnCours = true);
+    try {
+      final soinMisAJour = await ref
+          .read(administrateurActionsProvider)
+          .remplacerMediaSoin(_soinActuel!.id, fichier.path, role: role, ancienUrl: ancienUrl);
+      if (mounted) {
+        setState(() => _soinActuel = soinMisAJour);
+        context.showInfo('Média remplacé.');
+      }
+    } catch (e) {
+      if (mounted) context.showError('Échec du remplacement du média.');
+    } finally {
+      if (mounted) setState(() => _televersementEnCours = false);
+    }
+  }
+
+  /// Supprime un média (référence en base + fichier physique côté backend,
+  /// voir `soinController.supprimerMediaSoin`) après confirmation explicite.
+  /// `url` est requis pour "galerie"/"video" ; ignoré pour "couverture".
+  Future<void> _supprimerMedia(String role, {String? url}) async {
+    if (_soinActuel == null) return;
+    final libelle = switch (role) {
+      'couverture' => 'cette image de couverture',
+      'video' => 'cette vidéo',
+      _ => 'cette image',
+    };
+    final confirme = await ConfirmActionDialog.show(
+      context,
+      titre: 'Supprimer le média ?',
+      message: 'Suppression définitive de $libelle : le fichier sera aussi effacé du stockage. Action irréversible.',
+      libelleConfirmer: 'Supprimer',
+      destructif: true,
+      icone: Icons.delete_outline,
+    );
+    if (confirme != true) return;
+
+    setState(() => _televersementEnCours = true);
+    try {
+      final soinMisAJour = await ref
+          .read(administrateurActionsProvider)
+          .supprimerMediaSoin(_soinActuel!.id, role: role, url: url);
+      if (mounted) {
+        setState(() => _soinActuel = soinMisAJour);
+        context.showInfo('Média supprimé.');
+      }
+    } catch (e) {
+      if (mounted) context.showError('Échec de la suppression du média.');
+    } finally {
+      if (mounted) setState(() => _televersementEnCours = false);
+    }
+  }
+
   Future<void> _supprimerSoin() async {
     if (_soinActuel == null) return;
     final confirme = await ConfirmActionDialog.show(
@@ -221,6 +297,12 @@ class _AdministrateurSoinFormPageState extends ConsumerState<AdministrateurSoinF
                 onAjouterCouverture: () => _choisirEtTeleverser('couverture'),
                 onAjouterGalerie: () => _choisirEtTeleverser('galerie'),
                 onAjouterVideo: () => _choisirEtTeleverser('video'),
+                onRemplacerCouverture: () => _choisirEtRemplacer('couverture', null),
+                onSupprimerCouverture: () => _supprimerMedia('couverture'),
+                onRemplacerImage: (url) => _choisirEtRemplacer('galerie', url),
+                onSupprimerImage: (url) => _supprimerMedia('galerie', url: url),
+                onRemplacerVideo: (url) => _choisirEtRemplacer('video', url),
+                onSupprimerVideo: (url) => _supprimerMedia('video', url: url),
               ),
               const SizedBox(height: AppSpacing.md),
               Row(
@@ -321,6 +403,12 @@ class _SectionMedias extends StatelessWidget {
   final VoidCallback onAjouterCouverture;
   final VoidCallback onAjouterGalerie;
   final VoidCallback onAjouterVideo;
+  final VoidCallback onRemplacerCouverture;
+  final VoidCallback onSupprimerCouverture;
+  final ValueChanged<String> onRemplacerImage;
+  final ValueChanged<String> onSupprimerImage;
+  final ValueChanged<String> onRemplacerVideo;
+  final ValueChanged<String> onSupprimerVideo;
 
   const _SectionMedias({
     required this.soin,
@@ -328,6 +416,12 @@ class _SectionMedias extends StatelessWidget {
     required this.onAjouterCouverture,
     required this.onAjouterGalerie,
     required this.onAjouterVideo,
+    required this.onRemplacerCouverture,
+    required this.onSupprimerCouverture,
+    required this.onRemplacerImage,
+    required this.onSupprimerImage,
+    required this.onRemplacerVideo,
+    required this.onSupprimerVideo,
   });
 
   @override
@@ -350,10 +444,19 @@ class _SectionMedias extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
+
+          // --- Couverture -----------------------------------------------
           if (soin.imageCouverture != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Image.network(soin.imageCouverture!, height: 140, width: double.infinity, fit: BoxFit.cover),
+            _MediaTile(
+              enCours: enCours,
+              onTap: onRemplacerCouverture,
+              onSupprimer: onSupprimerCouverture,
+              hauteur: 140,
+              largeur: double.infinity,
+              enfant: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Image.network(soin.imageCouverture!, height: 140, width: double.infinity, fit: BoxFit.cover),
+              ),
             )
           else
             Container(
@@ -366,20 +469,73 @@ class _SectionMedias extends StatelessWidget {
               ),
               child: const Text('Aucune image de couverture', style: TextStyle(color: AppColors.textSecondary)),
             ),
-          const SizedBox(height: AppSpacing.sm),
-          if (soin.images.isNotEmpty)
+
+          // --- Galerie ----------------------------------------------------
+          if (soin.images.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('Galerie (${soin.images.length})', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: AppSpacing.xs),
             SizedBox(
               height: 64,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: soin.images.length,
                 separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
-                itemBuilder: (context, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Image.network(soin.images[i], width: 64, height: 64, fit: BoxFit.cover),
-                ),
+                itemBuilder: (context, i) {
+                  final url = soin.images[i];
+                  return _MediaTile(
+                    enCours: enCours,
+                    onTap: () => onRemplacerImage(url),
+                    onSupprimer: () => onSupprimerImage(url),
+                    hauteur: 64,
+                    largeur: 64,
+                    tailleIconeSuppression: 16,
+                    enfant: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: Image.network(url, width: 64, height: 64, fit: BoxFit.cover),
+                    ),
+                  );
+                },
               ),
             ),
+          ],
+
+          // --- Vidéos -------------------------------------------------
+          // Absentes de l'écran avant correction : la liste était bien
+          // téléversée côté backend (soin.videos) mais jamais rendue ici.
+          if (soin.videos.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('Vidéos (${soin.videos.length})', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: AppSpacing.xs),
+            SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: soin.videos.length,
+                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
+                itemBuilder: (context, i) {
+                  final url = soin.videos[i];
+                  return _MediaTile(
+                    enCours: enCours,
+                    onTap: () => onRemplacerVideo(url),
+                    onSupprimer: () => onSupprimerVideo(url),
+                    hauteur: 100,
+                    largeur: 150,
+                    enfant: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: _VideoApercu(url: url),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Astuce : touchez un média pour le remplacer, ou l\'icône corbeille pour le supprimer définitivement.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -404,6 +560,149 @@ class _SectionMedias extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Média (image ou vidéo) avec overlay de suppression et tap pour remplacer
+/// — factorisé pour la couverture, la galerie et les vidéos, afin d'offrir
+/// le même comportement CRUD partout (voir demande : create/read déjà en
+/// place, update = remplacement, delete = icône corbeille + confirmation
+/// gérée par l'appelant avant l'appel réseau).
+class _MediaTile extends StatelessWidget {
+  final Widget enfant;
+  final bool enCours;
+  final VoidCallback onTap;
+  final VoidCallback onSupprimer;
+  final double hauteur;
+  final double largeur;
+  final double tailleIconeSuppression;
+
+  const _MediaTile({
+    required this.enfant,
+    required this.enCours,
+    required this.onTap,
+    required this.onSupprimer,
+    required this.hauteur,
+    required this.largeur,
+    this.tailleIconeSuppression = 20,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: hauteur,
+      width: largeur,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          GestureDetector(
+            onTap: enCours ? null : onTap,
+            child: enfant,
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Material(
+              color: Colors.black.withOpacity(0.55),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: enCours ? null : onSupprimer,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.delete_outline, size: tailleIconeSuppression, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aperçu compact d'une vidéo de soin dans la section médias de l'admin —
+/// initialise `video_player` sur l'URL, affiche la première frame + un
+/// bouton lecture/pause. Volontairement minimal (pas de contrôles de
+/// progression) : c'est un aperçu de gestion, pas le lecteur patient.
+class _VideoApercu extends StatefulWidget {
+  final String url;
+
+  const _VideoApercu({required this.url});
+
+  @override
+  State<_VideoApercu> createState() => _VideoApercuState();
+}
+
+class _VideoApercuState extends State<_VideoApercu> {
+  VideoPlayerController? _controller;
+  bool _erreur = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialiser();
+  }
+
+  Future<void> _initialiser() async {
+    try {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      await controller.initialize();
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
+      setState(() => _controller = controller);
+    } catch (_) {
+      if (mounted) setState(() => _erreur = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_erreur) {
+      return Container(
+        color: AppColors.surface,
+        alignment: Alignment.center,
+        child: const Icon(Icons.videocam_off_outlined, color: AppColors.textDisabled),
+      );
+    }
+    final controller = _controller;
+    if (controller == null) {
+      return Container(
+        color: AppColors.surface,
+        alignment: Alignment.center,
+        child: const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return Stack(
+      alignment: Alignment.center,
+      fit: StackFit.expand,
+      children: [
+        FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller.value.size.width == 0 ? 150 : controller.value.size.width,
+            height: controller.value.size.height == 0 ? 100 : controller.value.size.height,
+            child: VideoPlayer(controller),
+          ),
+        ),
+        IconButton(
+          iconSize: 32,
+          color: Colors.white,
+          icon: Icon(controller.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
+          onPressed: () => setState(() {
+            controller.value.isPlaying ? controller.pause() : controller.play();
+          }),
+        ),
+      ],
     );
   }
 }

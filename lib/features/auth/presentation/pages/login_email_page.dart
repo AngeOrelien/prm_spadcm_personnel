@@ -80,6 +80,14 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
     context.showInfo('Connexion avec Google bientôt disponible.');
   }
 
+  // Méthode pour remplir rapidement les champs
+  void _remplirChampsRapides(String email, String mdp) {
+    setState(() {
+      _emailController.text = email;
+      _passwordController.text = mdp;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(otpLoginControllerProvider.select((s) => s.isLoading));
@@ -169,6 +177,39 @@ class _LoginEmailPageState extends ConsumerState<LoginEmailPage> {
                     TextButton(
                       onPressed: isLoading ? null : _motDePasseOublie,
                       child: const Text('Mot de passe oublié ?'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // --- Boutons de remplissage rapide (Dev / Test) ---
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Connexion rapide (Test)',
+                  style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ActionChip(
+                      label: const Text('AVS'),
+                      onPressed: isLoading ? null : () => _remplirChampsRapides('avsspad@gmail.com', 'AVS SPAD'),
+                    ),
+                    ActionChip(
+                      label: const Text('Admin'),
+                      onPressed: isLoading ? null : () => _remplirChampsRapides('adminspad@gmail.com', 'ADMIN SPAD'),
+                    ),
+                    ActionChip(
+                      label: const Text('Coordo'),
+                      onPressed: isLoading ? null : () => _remplirChampsRapides('coordospad@gmail.com', 'COORDO SPAD'),
+                    ),
+                    ActionChip(
+                      label: const Text('Médecin'),
+                      onPressed: isLoading ? null : () => _remplirChampsRapides('medecinspad@gmail.com', 'MEDECIN SPAD'),
                     ),
                   ],
                 ),

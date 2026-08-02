@@ -76,8 +76,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.md),
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
-        hintStyle: const TextStyle(color: AppColors.textDisabled),
+        // Même piège que pour chipTheme plus bas : labelStyle/hintStyle
+        // priment sur textTheme dès qu'ils sont fournis explicitement.
+        labelStyle: AppFonts.style(const TextStyle(color: AppColors.textSecondary)),
+        hintStyle: AppFonts.style(const TextStyle(color: AppColors.textDisabled)),
       ),
 
       filledButtonTheme: FilledButtonThemeData(
@@ -135,7 +137,12 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceMuted,
         selectedColor: AppColors.primarySurface,
-        labelStyle: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+        // ⚠️ Chip/ActionChip/ChoiceChip lisent `labelStyle` en priorité et
+        // ignorent `textTheme` — un TextStyle brut ici casse la police
+        // custom même si le reste de l'app l'a bien. Toujours passer par
+        // AppFonts.style(...) comme partout ailleurs (voir app_text_styles.dart).
+        labelStyle: AppFonts.style(const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+        secondaryLabelStyle: AppFonts.style(const TextStyle(color: AppColors.onPrimary, fontSize: 13)),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),

@@ -35,6 +35,7 @@ class AvsModel {
       // `photoUrl` n'existe pas encore sur le modèle backend `Utilisateur` —
       // lu quand même par anticipation (voir BACKEND_TODO.md).
       photoUrl: json['photoUrl'],
+      heureRapportLimite: json['heureRapportLimite'],
     );
   }
 }
@@ -57,6 +58,14 @@ class PatientModel {
       );
     }
 
+    final localisation = json['localisation'];
+    double? latitude;
+    double? longitude;
+    if (localisation is Map) {
+      latitude = double.tryParse('${localisation['latitude']}');
+      longitude = double.tryParse('${localisation['longitude']}');
+    }
+
     return Patient(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       nom: json['nom'] ?? '',
@@ -75,6 +84,8 @@ class PatientModel {
       photoUrl: json['photoUrl'],
       email: json['email'],
       compteUtilisateurId: json['compteUtilisateurId'] != null ? _idDe(json['compteUtilisateurId']) : null,
+      latitude: latitude,
+      longitude: longitude,
     );
   }
 

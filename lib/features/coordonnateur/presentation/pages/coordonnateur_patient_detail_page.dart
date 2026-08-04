@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/utils/location_service.dart';
 import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/misc/app_circle_icon_button.dart';
 import '../../domain/entities/coordonnateur_entities.dart';
@@ -98,6 +99,8 @@ class _ContenuState extends ConsumerState<_Contenu> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _CarteAvsAssigne(patient: patient),
+                const SizedBox(height: AppSpacing.lg),
+                _CarteLocalisation(patient: patient),
                 const SizedBox(height: AppSpacing.lg),
                 _SectionAntecedents(titre: 'Antécédents médicaux', items: patient.antecedents, icon: Icons.history),
                 _SectionAntecedents(titre: 'Allergies', items: patient.allergies, icon: Icons.warning_amber_outlined),
@@ -297,6 +300,192 @@ class _CarteAvsAssigne extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _CarteLocalisation extends ConsumerStatefulWidget {
+  final Patient patient;
+
+  const _CarteLocalisation({required this.patient});
+
+  @override
+  ConsumerState<_CarteLocalisation> createState() => _CarteLocalisationState();
+}
+
+class _CarteLocalisationState extends ConsumerState<_CarteLocalisation> {
+  bool _enCours = false;
+
+  Future<void> _definirLocalisation() async {
+    final resultat = await showDialog<({double latitude, double longitude})>(
+      context: context,
+      builder: (dialogContext) => _DialogueLocalisation(patient: widget.patient),
+    );
+    if (resultat == null || !mounted) return;
+
+    setState(() => _enCours = true);
+    try {
+      await ref.read(coordonnateurActionsProvider).definirLocalisationPatient(
+            widget.patient.id,
+            latitude: resultat.latitude,
+            longitude: resultat.longitude,
+          );
+      if (!mounted) return;
+      context.showInfo('Localisation du domicile enregistrée.');
+    } catch (e) {
+      if (!mounted) return;
+      context.showError('$e');
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final patient = widget.patient;
+    final renseignee = patient.aLocalisation;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            renseignee ? Icons.location_on : Icons.location_off_outlined,
+            color: renseignee ? AppColors.success : AppColors.textDisabled,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Localisation du domicile', style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  renseignee
+                      ? '${patient.latitude!.toStringAsFixed(5)}, ${patient.longitude!.toStringAsFixed(5)}'
+                      : 'Non renseignée — le check-in de l\'AVS ne sera pas vérifié',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          _enCours
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : TextButton(onPressed: _definirLocalisation, child: Text(renseignee ? 'Modifier' : 'Définir')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Boîte de dialogue de saisie des coordonnées GPS du domicile. Deux façons
+/// de renseigner la position : saisie manuelle (latitude/longitude connues
+/// à l'avance), ou "Utiliser ma position actuelle" si le coordonnateur se
+/// trouve physiquement chez le patient au moment de la saisie.
+class _DialogueLocalisation extends StatefulWidget {
+  final Patient patient;
+
+  const _DialogueLocalisation({required this.patient});
+
+  @override
+  State<_DialogueLocalisation> createState() => _DialogueLocalisationState();
+}
+
+class _DialogueLocalisationState extends State<_DialogueLocalisation> {
+  late final TextEditingController _latitude;
+  late final TextEditingController _longitude;
+  bool _recherchePosition = false;
+  String? _erreur;
+
+  @override
+  void initState() {
+    super.initState();
+    _latitude = TextEditingController(text: widget.patient.latitude?.toStringAsFixed(6) ?? '');
+    _longitude = TextEditingController(text: widget.patient.longitude?.toStringAsFixed(6) ?? '');
+  }
+
+  @override
+  void dispose() {
+    _latitude.dispose();
+    _longitude.dispose();
+    super.dispose();
+  }
+
+  Future<void> _utiliserPositionActuelle() async {
+    setState(() {
+      _recherchePosition = true;
+      _erreur = null;
+    });
+    try {
+      final position = await LocationService.obtenirPositionActuelle();
+      setState(() {
+        _latitude.text = position.latitude.toStringAsFixed(6);
+        _longitude.text = position.longitude.toStringAsFixed(6);
+      });
+    } on LocationServiceException catch (e) {
+      setState(() => _erreur = e.message);
+    } finally {
+      if (mounted) setState(() => _recherchePosition = false);
+    }
+  }
+
+  void _valider() {
+    final lat = double.tryParse(_latitude.text.trim());
+    final lon = double.tryParse(_longitude.text.trim());
+    if (lat == null || lon == null || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      setState(() => _erreur = 'Coordonnées invalides.');
+      return;
+    }
+    Navigator.of(context).pop((latitude: lat, longitude: lon));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Localisation du domicile'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Renseigne les coordonnées GPS du domicile de ${widget.patient.nomComplet}. '
+            'Elles servent à vérifier que l\'AVS est bien sur place lors de son check-in.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: _recherchePosition ? null : _utiliserPositionActuelle,
+            icon: _recherchePosition
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location),
+            label: const Text('Utiliser ma position actuelle'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _latitude,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+            decoration: const InputDecoration(labelText: 'Latitude'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _longitude,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+            decoration: const InputDecoration(labelText: 'Longitude'),
+          ),
+          if (_erreur != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(_erreur!, style: const TextStyle(color: AppColors.error)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
+        FilledButton(onPressed: _valider, child: const Text('Enregistrer')),
+      ],
     );
   }
 }

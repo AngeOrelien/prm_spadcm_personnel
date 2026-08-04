@@ -53,6 +53,10 @@ dependencies:
   # catalogue de soins (image de couverture, galerie, courtes vidéos).
   image_picker: ^1.2.3
   video_player: ^2.11.1
+  # Position GPS réelle pour le check-in AVS géolocalisé (voir
+  # core/utils/location_service.dart) — remplace les coordonnées factices
+  # utilisées jusqu'ici en attendant l'intégration native.
+  geolocator: ^14.0.3
 
 flutter_launcher_icons:
   image_path: "assets/icons/prmspad_personnel.png"

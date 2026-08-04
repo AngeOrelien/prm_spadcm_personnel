@@ -52,6 +52,11 @@ class Avs {
   // champ `photoUrl` pour l'instant) — voir `BACKEND_TODO.md`. Le champ est
   // déjà câblé côté app pour afficher la vraie photo dès qu'elle existera.
   final String? photoUrl;
+  // Heure limite (format "HH:mm") de remise du rapport journalier PROPRE à
+  // cet AVS — certains font leur tournée le matin, d'autres le soir (voir
+  // README backend §10.2). `null` tant que le coordonnateur/administrateur
+  // ne l'a pas encore définie (repli sur la valeur par défaut du serveur).
+  final String? heureRapportLimite;
 
   const Avs({
     required this.id,
@@ -62,6 +67,7 @@ class Avs {
     required this.statut,
     required this.patientsAssignes,
     this.photoUrl,
+    this.heureRapportLimite,
   });
 
   String get nomComplet => '$prenom $nom';
@@ -93,6 +99,12 @@ class Patient {
   // possible avec ce patient.
   final String? compteUtilisateurId;
 
+  // Coordonnées GPS du domicile, renseignées par le coordonnateur (voir
+  // `CoordonnateurLocalisationCard`) — utilisées côté backend pour vérifier
+  // que l'AVS affecté est bien sur place au moment du check-in.
+  final double? latitude;
+  final double? longitude;
+
   const Patient({
     required this.id,
     required this.nom,
@@ -111,7 +123,11 @@ class Patient {
     this.photoUrl,
     this.email,
     this.compteUtilisateurId,
+    this.latitude,
+    this.longitude,
   });
+
+  bool get aLocalisation => latitude != null && longitude != null;
 
   String get nomComplet => '$prenom $nom';
 }

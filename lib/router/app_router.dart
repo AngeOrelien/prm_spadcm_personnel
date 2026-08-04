@@ -30,7 +30,9 @@ import '../features/dashboard/presentation/pages/role_dashboard_shell.dart';
 import '../features/medecin/presentation/pages/medecin_patient_detail_page.dart';
 import '../features/medecin/presentation/pages/medecin_prescription_form_page.dart';
 import '../features/medecin/presentation/providers/medecin_providers.dart';
+import '../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../screens/splash_screen.dart';
+import '../shared/providers/onboarding_providers.dart';
 import '../shared/widgets/ai/ia_conversation_page.dart';
 import '../shared/widgets/messagerie/messagerie_conversation_page.dart';
 import 'app_routes.dart';
@@ -70,6 +72,9 @@ String _conversationId(GoRouterState state) {
 class _GoRouterRefreshNotifier extends ChangeNotifier {
   _GoRouterRefreshNotifier(Ref ref) {
     ref.listen(authControllerProvider, (previous, next) {
+      notifyListeners();
+    });
+    ref.listen(onboardingVuProvider, (previous, next) {
       notifyListeners();
     });
   }
@@ -113,26 +118,47 @@ final routerProvider = Provider<GoRouter>((ref) {
       final personnel = authState.value;
       final estConnecte = personnel != null;
 
+      final onboardingState = ref.read(onboardingVuProvider);
+      // Tant qu'on ne sait pas encore si l'onboarding a déjà été vu (lecture
+      // du stockage local en cours), on reste sur splash plutôt que de
+      // risquer d'afficher login puis onboarding en un clignement.
+      final onboardingEnChargement = onboardingState.isLoading;
+      final onboardingDejaVu = onboardingState.value ?? false;
+
       final surSplash = state.matchedLocation == AppRoutes.splash;
+      final surOnboarding = state.matchedLocation == AppRoutes.onboarding;
       final surLogin = state.matchedLocation == AppRoutes.login;
       final surOtp = state.matchedLocation == AppRoutes.otp;
       final surPagePublique = surLogin || surOtp;
 
-      if (estEnChargement) return surSplash ? null : AppRoutes.splash;
-      if (!estConnecte) return surPagePublique ? null : AppRoutes.login;
+      if (estEnChargement || onboardingEnChargement) {
+        return surSplash ? null : AppRoutes.splash;
+      }
+
+      // Premier lancement (jamais vu l'onboarding) et pas encore connecté :
+      // on affiche les 3 pages d'accueil avant même l'écran de connexion.
+      if (!estConnecte && !onboardingDejaVu) {
+        return surOnboarding ? null : AppRoutes.onboarding;
+      }
+
+      if (!estConnecte) {
+        if (surOnboarding) return AppRoutes.login;
+        return surPagePublique ? null : AppRoutes.login;
+      }
 
       // Connecté : chaque rôle a son propre dashboard, on ne le laisse pas
-      // traîner sur splash/login/otp, ni accéder au dashboard d'un autre rôle.
+      // traîner sur splash/onboarding/login/otp, ni accéder au dashboard d'un autre rôle.
       final config = roleDashboards[personnel.role]!;
       final accueilDuRole = config.tabs.first.path;
 
-      if (surSplash || surPagePublique) return accueilDuRole;
+      if (surSplash || surOnboarding || surPagePublique) return accueilDuRole;
       if (!state.matchedLocation.startsWith(config.basePath)) return accueilDuRole;
 
       return null;
     },
     routes: [
       GoRoute(path: AppRoutes.splash, builder: (context, state) => const SplashScreen()),
+      GoRoute(path: AppRoutes.onboarding, builder: (context, state) => const OnboardingPage()),
       GoRoute(path: AppRoutes.login, builder: (context, state) => const LoginEmailPage()),
       GoRoute(path: AppRoutes.otp, builder: (context, state) => const OtpVerificationPage()),
       for (final config in roleDashboards.values) _buildDashboardRoute(config),

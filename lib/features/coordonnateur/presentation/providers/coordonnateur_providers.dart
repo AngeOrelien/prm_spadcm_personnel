@@ -166,6 +166,23 @@ class CoordonnateurActions {
     _ref.invalidate(patientsListProvider);
   }
 
+  /// Enregistre la localisation GPS du domicile d'un patient (c'est le
+  /// coordonnateur qui la renseigne, voir README §10.3) — invalide la fiche
+  /// détail et la liste pour que le nouveau statut de géolocalisation
+  /// s'affiche immédiatement.
+  Future<void> definirLocalisationPatient(String patientId, {required double latitude, required double longitude}) async {
+    await _ds.definirLocalisationPatient(patientId, latitude: latitude, longitude: longitude);
+    _ref.invalidate(patientDetailProvider(patientId));
+    _ref.invalidate(patientsListProvider);
+  }
+
+  /// Définit l'heure limite de rapport propre à un AVS (voir README §10.2) —
+  /// invalide la liste équipe pour que la fiche AVS affiche la nouvelle heure.
+  Future<void> definirHeureRapportAvs(String avsId, {required String heureRapportLimite}) async {
+    await _ds.definirHeureRapportAvs(avsId, heureRapportLimite: heureRapportLimite);
+    _ref.invalidate(avsListProvider);
+  }
+
   Future<void> creerAffectation({
     required String patientId,
     required String avsId,

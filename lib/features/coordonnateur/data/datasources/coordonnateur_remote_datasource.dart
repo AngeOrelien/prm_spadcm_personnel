@@ -53,6 +53,21 @@ class CoordonnateurRemoteDataSource {
     }
   }
 
+  /// Enregistre la localisation GPS du domicile du patient (voir
+  /// `PATCH /api/patients/:id/localisation` côté backend) — utilisée pour
+  /// vérifier la présence géolocalisée de l'AVS au check-in.
+  Future<Patient> definirLocalisationPatient(String patientId, {required double latitude, required double longitude}) async {
+    try {
+      final response = await _apiClient.dio.patch(
+        '${ApiConstants.patients}/$patientId/localisation',
+        data: {'latitude': latitude, 'longitude': longitude},
+      );
+      return PatientModel.fromJson(response.data['patient'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
   // --- Équipe AVS ---
 
   Future<List<Avs>> listerEquipeAvs() async {
@@ -60,6 +75,19 @@ class CoordonnateurRemoteDataSource {
       final response = await _apiClient.dio.get(ApiConstants.avsEquipe);
       final data = response.data['equipe'] as List;
       return data.map((json) => AvsModel.fromJson(json as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiClient.toAppException(e);
+    }
+  }
+
+  /// Définit l'heure limite de remise du rapport journalier PROPRE à cet
+  /// AVS (voir `PATCH /api/utilisateurs/:id/heure-rapport` côté backend).
+  Future<void> definirHeureRapportAvs(String avsId, {required String heureRapportLimite}) async {
+    try {
+      await _apiClient.dio.patch(
+        '${ApiConstants.utilisateurs}/$avsId/heure-rapport',
+        data: {'heureRapportLimite': heureRapportLimite},
+      );
     } on DioException catch (e) {
       throw ApiClient.toAppException(e);
     }

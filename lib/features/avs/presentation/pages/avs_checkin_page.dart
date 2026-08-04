@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/utils/location_service.dart';
 import '../../../../shared/widgets/misc/scroll_refresh_listener.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
 import '../../../../shared/widgets/dashboard/dashboard_widgets.dart';
@@ -67,10 +69,19 @@ class _AvsCheckinPageState extends ConsumerState<AvsCheckinPage> {
 
     setState(() => _enCours = true);
     try {
-      // Géolocalisation réelle branchée plus tard (package `geolocator`) ;
-      // valeurs de test en attendant l'intégration native.
-      await ref.read(avsActionsProvider).checkIn(latitude: 3.8480, longitude: 11.5021);
+      final position = await LocationService.obtenirPositionActuelle();
+      await ref.read(avsActionsProvider).checkIn(
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
       if (mounted) context.showInfo('Check-in enregistré. Bonne journée !');
+    } on LocationServiceException catch (e) {
+      if (mounted) context.showError(e.message);
+    } on AppException catch (e) {
+      // Le backend refuse le check-in (403) si l'AVS n'est pas au domicile
+      // du patient affecté (voir presenceController.checkIn côté backend) :
+      // on relaie directement son message plutôt qu'un texte générique.
+      if (mounted) context.showError(e.message);
     } catch (e) {
       if (mounted) context.showError('Échec du check-in. Réessaie.');
     } finally {

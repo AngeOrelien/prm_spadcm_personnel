@@ -106,6 +106,8 @@ class _ContenuState extends ConsumerState<_Contenu> {
               children: [
                 _LigneCoordonnee(icon: Icons.phone_outlined, label: 'Téléphone', valeur: avs.telephone),
                 if (avs.email != null) _LigneCoordonnee(icon: Icons.email_outlined, label: 'Email', valeur: avs.email!),
+                const SizedBox(height: AppSpacing.md),
+                _CarteHeureRapport(avs: avs),
               ],
             ),
           ),
@@ -375,6 +377,87 @@ class _AvatarPhoto extends StatelessWidget {
     if (mots.isEmpty) return '?';
     if (mots.length == 1) return mots.first.substring(0, 1).toUpperCase();
     return (mots.first.substring(0, 1) + mots.last.substring(0, 1)).toUpperCase();
+  }
+}
+
+/// Heure limite de remise du rapport journalier, PROPRE à cet AVS
+/// (certains font leur tournée le matin, d'autres le soir — voir README
+/// backend §10.2). Modifiable directement depuis la fiche AVS.
+class _CarteHeureRapport extends ConsumerStatefulWidget {
+  final Avs avs;
+
+  const _CarteHeureRapport({required this.avs});
+
+  @override
+  ConsumerState<_CarteHeureRapport> createState() => _CarteHeureRapportState();
+}
+
+class _CarteHeureRapportState extends ConsumerState<_CarteHeureRapport> {
+  bool _enCours = false;
+
+  Future<void> _modifier() async {
+    final actuelle = widget.avs.heureRapportLimite;
+    final parts = actuelle?.split(':');
+    final heureInitiale = parts != null && parts.length == 2
+        ? TimeOfDay(hour: int.tryParse(parts[0]) ?? 20, minute: int.tryParse(parts[1]) ?? 0)
+        : const TimeOfDay(hour: 20, minute: 0);
+
+    final choisie = await showTimePicker(
+      context: context,
+      initialTime: heureInitiale,
+      helpText: 'Heure limite de remise du rapport',
+    );
+    if (choisie == null || !mounted) return;
+
+    final formatee = '${choisie.hour.toString().padLeft(2, '0')}:${choisie.minute.toString().padLeft(2, '0')}';
+
+    setState(() => _enCours = true);
+    try {
+      await ref.read(coordonnateurActionsProvider).definirHeureRapportAvs(widget.avs.id, heureRapportLimite: formatee);
+      if (!mounted) return;
+      context.showInfo('Heure de rapport mise à jour : $formatee.');
+    } catch (e) {
+      if (!mounted) return;
+      context.showError('$e');
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final heure = widget.avs.heureRapportLimite;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule_outlined, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Heure limite de rapport', style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  heure ?? 'Valeur par défaut (non personnalisée)',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          _enCours
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : TextButton(onPressed: _modifier, child: Text(heure == null ? 'Définir' : 'Modifier')),
+        ],
+      ),
+    );
   }
 }
 

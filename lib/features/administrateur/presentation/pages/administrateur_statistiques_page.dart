@@ -9,6 +9,7 @@ import '../../../../core/theme/app_dimens.dart';
 import '../../../../router/app_routes.dart';
 import '../../../../shared/widgets/dashboard/dashboard_widgets.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
+import '../../../ia/presentation/widgets/performance_avs_widgets.dart';
 import '../../domain/entities/administrateur_entities.dart';
 import '../providers/administrateur_providers.dart';
 import '../widgets/administrateur_widgets.dart';
@@ -107,6 +108,11 @@ class _AdministrateurStatistiquesPageState extends ConsumerState<AdministrateurS
                         StatCard(valeur: '${stats.avsAbsentsAujourdhui}', libelle: 'Absences (jour)', icon: Icons.event_busy_outlined, couleur: AppColors.error),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: PerformanceAvsLeaderboard(jours: 30),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   SectionTitle(

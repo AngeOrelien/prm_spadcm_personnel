@@ -9,6 +9,9 @@ import '../../../../shared/widgets/misc/scroll_refresh_listener.dart';
 import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
 import '../../../coordonnateur/presentation/widgets/coordonnateur_widgets.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
+import '../../../ia/presentation/widgets/alertes_intelligentes_card.dart';
+import '../../../ia/presentation/widgets/evolution_sante_card.dart';
+import '../../../ia/presentation/widgets/resume_rapports_card.dart';
 import '../providers/avs_providers.dart';
 import '../widgets/avs_widgets.dart';
 
@@ -163,6 +166,13 @@ class PatientDetailContent extends ConsumerWidget {
             valeur: '${patient.contactUrgence!.nom ?? ''} · ${patient.contactUrgence!.telephone ?? ''}',
           ),
         ],
+        const SizedBox(height: AppSpacing.sm),
+        SectionTitle(titre: 'Analyse IA'),
+        ResumeRapportsCard(patientId: patient.id),
+        const SizedBox(height: AppSpacing.sm),
+        EvolutionSanteCard(patientId: patient.id),
+        const SizedBox(height: AppSpacing.sm),
+        AlertesIntelligentesCard(patientId: patient.id),
         const SizedBox(height: AppSpacing.sm),
         SectionTitle(
           titre: 'Historique des rapports',

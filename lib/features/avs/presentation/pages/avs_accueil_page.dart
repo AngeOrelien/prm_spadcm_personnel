@@ -11,6 +11,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../coordonnateur/domain/entities/coordonnateur_entities.dart';
 import '../../../coordonnateur/presentation/widgets/coordonnateur_widgets.dart';
 import '../../../dashboard/presentation/widgets/app_dashboard_header.dart';
+import '../../../ia/presentation/widgets/performance_avs_widgets.dart';
 import '../../domain/entities/avs_entities.dart';
 import '../providers/avs_providers.dart';
 import '../widgets/avs_widgets.dart';
@@ -73,6 +74,10 @@ class AvsAccueilPage extends ConsumerWidget {
                             error: (e, st) => const SizedBox.shrink(),
                             data: (presence) => _CartePresenceRapide(presence: presence),
                           ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                          child: ScoreAvsPersonnelCard(),
                         ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),

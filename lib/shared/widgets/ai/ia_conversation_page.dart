@@ -1,10 +1,11 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../features/ia/domain/entities/ia_entities.dart';
+import '../../../features/ia/presentation/providers/ia_providers.dart';
 import '../misc/app_circle_icon_button.dart';
 import 'ai_chat_logic.dart';
 
@@ -14,35 +15,26 @@ import 'ai_chat_logic.dart';
 /// bulles de message, barre de saisie).
 ///
 /// Mutualisé entre les 4 rôles de l'app Personnel (Administrateur, AVS,
-/// Coordonnateur, Médecin) — avant ce fichier, chaque rôle qui voulait le
-/// fil épinglé IA dupliquait sa propre copie quasi identique (voir
-/// `AvsIaConversationPage` / `AdministrateurIaConversationPage`,
-/// désormais supprimées). Un seul endroit à faire évoluer (ex: brancher le
-/// vrai backend `POST /api/assistant/chat`, voir `assistantController.js`)
-/// profite donc aux 4 onglets Messagerie d'un coup.
-///
-/// ⚠️ Réponses toujours simulées côté app pour l'instant (voir
-/// `ai_chat_logic.dart`) : le jour où on branche le vrai endpoint IA, seul
-/// `_envoyer()` ci-dessous devra changer.
-class IaConversationPage extends StatefulWidget {
+/// Coordonnateur, Médecin) via [chatIaControllerProvider] — même
+/// conversation/historique que le bouton flottant (`ai_chat_sheet.dart`),
+/// branchée sur le vrai backend (`POST /api/assistant/chat`).
+class IaConversationPage extends ConsumerStatefulWidget {
   const IaConversationPage({super.key});
 
   @override
-  State<IaConversationPage> createState() => _IaConversationPageState();
+  ConsumerState<IaConversationPage> createState() => _IaConversationPageState();
 }
 
-class _IaConversationPageState extends State<IaConversationPage> {
+class _IaConversationPageState extends ConsumerState<IaConversationPage> {
   final _saisieCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final List<MessageIa> _messages = [];
-  bool _enTrainDecrire = false;
 
   @override
   void initState() {
     super.initState();
-    _messages.add(
-      MessageIa(texte: messageAccueilIa(EnvConfig.aiAssistantName), deMoi: false, heure: DateTime.now()),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(chatIaControllerProvider.notifier).demarrerAvecMessageAccueil(messageAccueilIa(EnvConfig.aiAssistantName));
+    });
   }
 
   @override
@@ -65,25 +57,16 @@ class _IaConversationPageState extends State<IaConversationPage> {
 
   Future<void> _envoyer() async {
     final texte = _saisieCtrl.text.trim();
-    if (texte.isEmpty || _enTrainDecrire) return;
-    setState(() {
-      _messages.add(MessageIa(texte: texte, deMoi: true, heure: DateTime.now()));
-      _enTrainDecrire = true;
-    });
+    if (texte.isEmpty || ref.read(chatIaControllerProvider).enTrainDecrire) return;
     _saisieCtrl.clear();
     _scrollerEnBas();
-
-    await Future.delayed(Duration(milliseconds: 500 + Random().nextInt(500)));
-    if (!mounted) return;
-    setState(() {
-      _messages.add(MessageIa(texte: reponseSimulee(texte), deMoi: false, heure: DateTime.now()));
-      _enTrainDecrire = false;
-    });
+    await ref.read(chatIaControllerProvider.notifier).envoyer(texte);
     _scrollerEnBas();
   }
 
   @override
   Widget build(BuildContext context) {
+    final etat = ref.watch(chatIaControllerProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -120,16 +103,16 @@ class _IaConversationPageState extends State<IaConversationPage> {
             child: ListView.builder(
               controller: _scrollCtrl,
               padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
-              itemCount: _messages.length + (_enTrainDecrire ? 1 : 0),
+              itemCount: etat.messages.length + (etat.enTrainDecrire ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index >= _messages.length) {
+                if (index >= etat.messages.length) {
                   return const _BulleEnCoursDeSaisie();
                 }
-                return _BulleMessageIa(message: _messages[index]);
+                return _BulleMessageIa(message: etat.messages[index]);
               },
             ),
           ),
-          _BarreSaisieIa(controller: _saisieCtrl, enCours: _enTrainDecrire, onEnvoyer: _envoyer),
+          _BarreSaisieIa(controller: _saisieCtrl, enCours: etat.enTrainDecrire, onEnvoyer: _envoyer),
         ],
       ),
     );
@@ -137,7 +120,7 @@ class _IaConversationPageState extends State<IaConversationPage> {
 }
 
 class _BulleMessageIa extends StatelessWidget {
-  final MessageIa message;
+  final MessageChatIa message;
 
   const _BulleMessageIa({required this.message});
 
@@ -167,7 +150,7 @@ class _BulleMessageIa extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message.texte, style: TextStyle(color: estMoi ? Colors.white : AppColors.textPrimary, height: 1.3)),
+            Text(message.contenu, style: TextStyle(color: estMoi ? Colors.white : AppColors.textPrimary, height: 1.3)),
             const SizedBox(height: 4),
             Text(
               _formaterHeure(message.heure),

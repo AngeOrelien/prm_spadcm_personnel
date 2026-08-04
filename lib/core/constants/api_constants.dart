@@ -92,6 +92,20 @@ class ApiConstants {
   // --- Messagerie (branchement prévu plus tard) ---
   static const String conversations = '/conversations';
 
+  // --- Assistant IA (POST /api/assistant/chat, relais backend -> service
+  // IA séparé prm-spadcm-ia) et endpoints IA transverses (POST /api/ia/*,
+  // voir iaController.js/iaRoutes.js) : résumé de rapports, évolution
+  // santé, performance des AVS, recherche sémantique, alertes
+  // intelligentes. Toujours en POST côté backend (corps JSON), jamais
+  // d'appel direct app -> service IA (voir README.md, principe de
+  // sécurité "un seul point d'entrée, protégé par JWT + rate limiting").
+  static const String assistantChat = '/assistant/chat';
+  static const String iaResumeRapports = '/ia/resume-rapports';
+  static const String iaEvolutionSante = '/ia/evolution-sante';
+  static const String iaPerformanceAvs = '/ia/performance-avs';
+  static const String iaRechercheSemantique = '/ia/recherche-semantique';
+  static const String iaAlertesIntelligentes = '/ia/alertes-intelligentes';
+
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
 }

@@ -57,6 +57,7 @@ dependencies:
   # core/utils/location_service.dart) — remplace les coordonnées factices
   # utilisées jusqu'ici en attendant l'intégration native.
   geolocator: ^14.0.3
+  fl_chart: ^1.2.0
 
 flutter_launcher_icons:
   image_path: "assets/icons/prmspad_personnel.png"
